@@ -15,7 +15,7 @@ function readOAuthError(): string | null {
 
   const normalized = description.toLowerCase()
   if (normalized.includes('not authorized') || normalized.includes('database error')) {
-    return 'Este e-mail não está autorizado a usar o app. Fale com o Thiago para liberar o acesso.'
+    return 'Este e-mail não está autorizado a usar o app. Fale com seu nutri para liberar o acesso.'
   }
   return 'Não foi possível entrar com o Google agora. Tente de novo em instantes.'
 }
@@ -119,7 +119,7 @@ export function LoginPage() {
         </button>
 
         <p className="login-note">
-          O cadastro é só para convidados. Se seu e-mail não foi liberado, fale com o Thiago.
+          O cadastro é só para convidados. Se seu e-mail não foi liberado, fale com seu nutri.
         </p>
       </div>
     </div>

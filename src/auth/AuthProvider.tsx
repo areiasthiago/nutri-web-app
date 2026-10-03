@@ -32,7 +32,7 @@ function translateAuthError(message: string): string {
     normalized.includes('e-mail não autorizado') ||
     normalized.includes('database error')
   ) {
-    return 'Este e-mail não está autorizado a usar o app. Fale com o Thiago para liberar o acesso.'
+    return 'Este e-mail não está autorizado a usar o app. Fale com seu nutri para liberar o acesso.'
   }
   if (normalized.includes('invalid login credentials')) {
     return 'E-mail ou senha incorretos.'
