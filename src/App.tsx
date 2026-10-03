@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthProvider'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { Footer } from './components/Footer'
+import { InstallBanner } from './components/InstallBanner'
 import { shouldShowInstallInvite } from './lib/install'
 import { supabaseConfigError } from './lib/supabaseClient'
 import { InstallPage } from './pages/InstallPage'
@@ -52,6 +53,7 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
+          <InstallBanner onInstall={() => setShowInstall(true)} />
           <Footer />
         </div>
       </HashRouter>

@@ -28,6 +28,7 @@ export function isStandalone(): boolean {
 // O Chrome dispara `beforeinstallprompt` logo no carregamento, possivelmente
 // antes do React montar a tela, então o evento é guardado aqui no módulo.
 let deferredPrompt: BeforeInstallPromptEvent | null = null
+let justInstalled = false
 const listeners = new Set<() => void>()
 
 function notify() {
@@ -42,6 +43,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
 
 window.addEventListener('appinstalled', () => {
   deferredPrompt = null
+  justInstalled = true
   notify()
 })
 
@@ -63,6 +65,11 @@ export async function promptInstall(): Promise<boolean> {
 export function onInstallStateChange(fn: () => void): () => void {
   listeners.add(fn)
   return () => listeners.delete(fn)
+}
+
+/** No celular, aberto no navegador e ainda sem instalar: lembrar de instalar. */
+export function shouldRemindInstall(): boolean {
+  return isMobile && !isStandalone() && !justInstalled
 }
 
 const SKIP_KEY = 'nutri:skip-install'
