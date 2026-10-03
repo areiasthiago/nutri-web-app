@@ -9,7 +9,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.png'],
       manifest: {
         name: 'Nutri Helper',
         short_name: 'Nutri Helper',
@@ -19,7 +19,7 @@ export default defineConfig({
         scope: '/nutri-web-app/',
         display: 'standalone',
         background_color: '#ffffff',
-        theme_color: '#1f7a4d',
+        theme_color: '#104030',
         icons: [
           {
             src: 'icons/icon-192.png',

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { useAuth } from '../auth/AuthProvider'
-import logoMark from '../assets/logo-mark.svg'
+import logoMark from '../assets/logo-mark.png'
 
 function readOAuthError(): string | null {
   const params = new URLSearchParams(window.location.search)

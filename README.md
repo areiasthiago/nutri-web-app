@@ -6,6 +6,8 @@ briefing completo em [`refs/BRIEFING_app_plano_alimentar.md`](refs/BRIEFING_app_
 Stack: React + Vite + TypeScript, hospedado no GitHub Pages, com Supabase (Auth + Postgres)
 no plano gratuito. Sem backend próprio, sem custo.
 
+Paleta de cores, logo e convenções visuais: ver [`ds.md`](ds.md).
+
 ## Desenvolvimento local
 
 ```bash

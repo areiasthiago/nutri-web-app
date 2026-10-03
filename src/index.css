@@ -1,7 +1,12 @@
 :root {
-  --green: #1f7a4d;
-  --green-dark: #155c39;
+  /* Paleta extraída do logo (ver ds.md) */
+  --green: #104030;
+  --green-dark: #0b2e21;
+  --green-bright: #409828;
+  --tomato: #f85048;
+  --carrot: #f09820;
   --blue: #2f8fd1;
+
   --bg: #ffffff;
   --surface: #f6f8f7;
   --text: #16201b;
@@ -10,7 +15,7 @@
   --error-bg: #fdecea;
   --error-text: #8a1f11;
   --info-bg: #e8f4ee;
-  --info-text: #155c39;
+  --info-text: #0b2e21;
 
   color-scheme: light dark;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
