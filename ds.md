@@ -44,8 +44,10 @@ Neutros (claro/escuro, com suporte a `prefers-color-scheme: dark` — ver `src/i
 | `--text-muted` | `#5b655f` | `#9aa49e` |
 | `--border` | `#e1e6e3` | `#2a2f34` |
 
-Todos os tokens ficam em `src/index.css`, dentro de `:root` e do bloco
-`@media (prefers-color-scheme: dark)`. Qualquer cor nova deve entrar como variável ali, não
+Todos os tokens ficam em `src/index.css`: os claros em `:root`, os escuros repetidos em
+`@media (prefers-color-scheme: dark)` (segue o sistema) e em `:root[data-theme='dark']`
+(escolha manual no botão de tema, salva no aparelho — ver `src/lib/theme.ts`). Token
+escuro novo entra nos dois blocos. Qualquer cor nova deve entrar como variável ali, não
 hardcoded em componentes.
 
 ## Tipografia

@@ -22,15 +22,22 @@
   --info-bg: #e8f4ee;
   --info-text: #0b2e21;
 
-  color-scheme: light dark;
+  /* No escuro o logo ganha fundo branco (ver .login-logo). */
+  --logo-bg: transparent;
+  --logo-pad: 0;
+
+  color-scheme: light;
   font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
 }
 
+/* Escuro: segue o sistema, a menos que a pessoa tenha escolhido um tema no
+   botão (data-theme no <html>, ver src/lib/theme.ts). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
     --bg: #12151a;
     --surface: #1b1f24;
     --text: #e7ece9;
@@ -42,7 +49,26 @@
     --info-text: #7fd4ac;
     --primary: #237f58;
     --primary-hover: #1a6b4a;
+    --logo-bg: #ffffff;
+    --logo-pad: 10px;
   }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #12151a;
+  --surface: #1b1f24;
+  --text: #e7ece9;
+  --text-muted: #9aa49e;
+  --border: #2a2f34;
+  --error-bg: #3a1a16;
+  --error-text: #ff9c8b;
+  --info-bg: #15271f;
+  --info-text: #7fd4ac;
+  --primary: #237f58;
+  --primary-hover: #1a6b4a;
+  --logo-bg: #ffffff;
+  --logo-pad: 10px;
 }
 
 * {
@@ -99,6 +125,8 @@ input {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
+  /* Espaço para o botão de tema, fixo no canto superior direito. */
+  padding-right: 48px;
 }
 
 .page-header h1 {
@@ -136,19 +164,33 @@ input {
   text-align: center;
 }
 
-.login-logo {
-  margin: 0 auto 4px;
-}
-
 /* A tigela do logo é verde-escura e some no fundo escuro: no modo escuro o
    logo ganha um fundo branco arredondado, igual ao ícone do app. */
-@media (prefers-color-scheme: dark) {
-  .login-logo {
-    box-sizing: content-box;
-    padding: 10px;
-    border-radius: 22px;
-    background: #ffffff;
-  }
+.login-logo {
+  margin: 0 auto 4px;
+  box-sizing: content-box;
+  padding: var(--logo-pad);
+  border-radius: 22px;
+  background: var(--logo-bg);
+}
+
+/* Botão de trocar o tema (canto superior direito) */
+
+.theme-toggle {
+  position: fixed;
+  top: calc(8px + env(safe-area-inset-top));
+  right: 8px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  z-index: 10;
 }
 
 .login-card h1 {
