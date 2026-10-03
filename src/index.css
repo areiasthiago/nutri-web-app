@@ -294,6 +294,10 @@ input {
 }
 
 .btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   background: var(--bg);
   border-color: var(--border);
   color: var(--text);
