@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { Navigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import logoMark from '../assets/logo-mark.png'
 
@@ -34,7 +35,7 @@ function readOAuthError(): string | null {
 }
 
 export function LoginPage() {
-  const { signInWithGoogle, signInWithPassword, signUpWithPassword, backendError } = useAuth()
+  const { session, signInWithGoogle, signInWithPassword, signUpWithPassword, backendError } = useAuth()
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -69,6 +70,9 @@ export function LoginPage() {
     }
     setSubmitting(false)
   }
+
+  // Já logado (inclusive logo depois de entrar com e-mail e senha): vai para Hoje.
+  if (session) return <Navigate to="/" replace />
 
   return (
     <div className="login-page">

@@ -95,6 +95,18 @@ nos tamanhos acima).
 - Banners de mensagem (`.banner-error`, `.banner-info`): fundo suave + texto escuro da
   mesma família de cor, nunca cor pura sobre fundo branco (acessibilidade de contraste).
 
+## Estrutura das telas
+
+- **Telas logadas**: cabeçalho fixo no topo (`.app-header`) com logo + "Nutri Helper" à
+  esquerda (leva para "Hoje") e, à direita, botão de tema e menu ☰ da conta (e-mail, "Minha
+  conta", "Sair"). Ações da conta ficam só no menu, não soltas nas telas.
+- **Telas sem login** (convite e login): sem cabeçalho; o botão de tema flutua no canto
+  (`.theme-toggle-floating`). O login põe logo e nome lado a lado para caber sem rolar
+  em 390×664.
+- **Atenção/pendência** (`.banner-attention`, tokens `--attention-bg`/`--attention-text`):
+  família do laranja-cenoura do logo. Usado no aviso do plano ("trocas aguardando validação").
+- **Refeição em destaque**: borda `--primary` de 2px e selo "Agora"/"Próxima · em 1h20".
+
 ## O que falta decidir (próximas fatias)
 
 - Cor definitiva para a função de água (hoje é só um `--blue` provisório, sem relação com o

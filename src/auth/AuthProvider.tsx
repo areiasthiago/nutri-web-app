@@ -15,6 +15,8 @@ type AuthContextValue = {
   signInWithGoogle: () => Promise<{ error: string | null }>
   signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>
   signUpWithPassword: (email: string, password: string) => Promise<{ error: string | null }>
+  /** Define ou troca a senha da conta logada (serve também para quem entrou pelo Google). */
+  updatePassword: (password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
 }
 
@@ -109,6 +111,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? translateAuthError(error.message) : null }
   }
 
+  async function updatePassword(password: string) {
+    const { error } = await client.auth.updateUser({ password })
+    if (error?.message.toLowerCase().includes('should be different')) {
+      return { error: 'A nova senha precisa ser diferente da atual.' }
+    }
+    return { error: error ? translateAuthError(error.message) : null }
+  }
+
   async function signOut() {
     await client.auth.signOut()
   }
@@ -122,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithGoogle,
         signInWithPassword,
         signUpWithPassword,
+        updatePassword,
         signOut,
       }}
     >

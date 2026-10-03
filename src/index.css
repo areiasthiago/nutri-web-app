@@ -21,6 +21,9 @@
   --error-text: #8a1f11;
   --info-bg: #e8f4ee;
   --info-text: #0b2e21;
+  /* Atenção/pendência, da família do laranja-cenoura do logo */
+  --attention-bg: #fdf1e1;
+  --attention-text: #7a4600;
 
   /* No escuro o logo ganha fundo branco (ver .login-logo). */
   --logo-bg: transparent;
@@ -47,6 +50,8 @@
     --error-text: #ff9c8b;
     --info-bg: #15271f;
     --info-text: #7fd4ac;
+    --attention-bg: #33240f;
+    --attention-text: #f5c27a;
     --primary: #237f58;
     --primary-hover: #1a6b4a;
     --logo-bg: #ffffff;
@@ -65,6 +70,8 @@
   --error-text: #ff9c8b;
   --info-bg: #15271f;
   --info-text: #7fd4ac;
+  --attention-bg: #33240f;
+  --attention-text: #f5c27a;
   --primary: #237f58;
   --primary-hover: #1a6b4a;
   --logo-bg: #ffffff;
@@ -120,18 +127,179 @@ input {
   margin: 0 auto;
 }
 
-.page-header {
+.page-heading {
+  margin-bottom: 16px;
+}
+
+.page-title {
+  font-size: 24px;
+  margin: 0;
+}
+
+.back-link + .page-title {
+  margin-bottom: 12px;
+}
+
+.back-link {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: -8px 0 4px;
+  color: var(--blue);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Cabeçalho das telas logadas */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
-  /* Espaço para o botão de tema, fixo no canto superior direito. */
-  padding-right: 48px;
+  gap: 12px;
+  padding: calc(8px + env(safe-area-inset-top)) 12px 8px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
 
-.page-header h1 {
-  font-size: 24px;
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.app-brand-logo {
+  box-sizing: content-box;
+  padding: calc(var(--logo-pad) * 0.3);
+  border-radius: 8px;
+  background: var(--logo-bg);
+}
+
+.app-header-actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.icon-button {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  background: var(--surface);
+}
+
+.account-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 240px;
+  max-width: calc(100vw - 24px);
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.account-menu-who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.account-menu-who span {
+  color: var(--text-muted);
+}
+
+.account-menu-item {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.account-menu-item:hover {
+  background: var(--surface);
+}
+
+.account-menu-danger {
+  color: var(--error-text);
+}
+
+/* Minha conta */
+
+.form-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-card h2,
+.form-card p {
   margin: 0;
+}
+
+.field select {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 44px;
+  font: inherit;
+}
+
+.field small {
+  font-size: 13px;
+}
+
+.btn-outline {
+  background: none;
+  border-color: var(--border);
+  color: var(--error-text);
+  margin-top: 4px;
+}
+
+.account-footnote {
+  margin: 12px 0 0;
+  font-size: 13px;
+  text-align: center;
 }
 
 .centered-message {
@@ -188,23 +356,15 @@ input {
   background: var(--logo-bg);
 }
 
-/* Botão de trocar o tema (canto superior direito) */
+/* Botão de tema flutuante (telas sem cabeçalho: convite e login) */
 
-.theme-toggle {
+.theme-toggle-floating {
   position: fixed;
   top: calc(8px + env(safe-area-inset-top));
   right: 8px;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: 50%;
-  background: var(--surface);
-  color: var(--text);
-  cursor: pointer;
   z-index: 10;
+  border-color: var(--border);
+  background: var(--surface);
 }
 
 .login-card h1 {
@@ -323,6 +483,10 @@ input {
   font-size: 14px;
 }
 
+.form-card .field input {
+  background: var(--bg);
+}
+
 .field input {
   padding: 12px 14px;
   border: 1px solid var(--border);
@@ -392,4 +556,150 @@ input {
 .banner-info {
   background: var(--info-bg);
   color: var(--info-text);
+}
+
+.banner-attention {
+  background: var(--attention-bg);
+  color: var(--attention-text);
+}
+
+/* Tela "Hoje" */
+
+.page-date {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.page > .banner {
+  margin: 0 0 12px;
+}
+
+.empty-state {
+  text-align: center;
+  margin-top: 32px;
+}
+
+.meal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.meal-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+}
+
+.meal-card-next {
+  border: 2px solid var(--primary);
+}
+
+.meal-card summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 8px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.meal-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.meal-time {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.meal-name {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-weight: 600;
+}
+
+.meal-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.meal-kcal {
+  color: var(--text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.meal-items {
+  margin: 0;
+  padding: 0 14px 12px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.meal-item-main {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.meal-item-qty {
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.meal-item-subs {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.info-card {
+  padding: 14px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.info-card h2 {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.info-card p {
+  margin: 0 0 6px;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.info-card p.muted {
+  font-size: 13px;
+}
+
+.water-card h2 {
+  color: var(--blue);
+}
+
+.notes-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 15px;
 }

@@ -1,14 +1,40 @@
 import { useState } from 'react'
-import { HashRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { HashRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthProvider'
 import { ProtectedRoute } from './auth/ProtectedRoute'
+import { AppHeader } from './components/AppHeader'
 import { Footer } from './components/Footer'
 import { InstallBanner } from './components/InstallBanner'
+import { ThemeToggle } from './components/ThemeToggle'
 import { shouldShowInstallInvite } from './lib/install'
+import { ProfileProvider } from './lib/profile'
 import { supabaseConfigError } from './lib/supabaseClient'
+import { AccountPage } from './pages/AccountPage'
 import { InstallPage } from './pages/InstallPage'
 import { LoginPage } from './pages/LoginPage'
 import { TodayPage } from './pages/TodayPage'
+
+/** Telas logadas: cabeçalho com marca, tema e menu da conta. */
+function SignedInLayout() {
+  return (
+    <ProtectedRoute>
+      <ProfileProvider>
+        <AppHeader />
+        <Outlet />
+      </ProfileProvider>
+    </ProtectedRoute>
+  )
+}
+
+/** Telas sem login: só o botão de tema, flutuando no canto. */
+function SignedOutLayout() {
+  return (
+    <>
+      <ThemeToggle floating />
+      <Outlet />
+    </>
+  )
+}
 
 function App() {
   const [showInstall, setShowInstall] = useState(shouldShowInstallInvite)
@@ -16,6 +42,7 @@ function App() {
   if (showInstall) {
     return (
       <div className="app-shell">
+        <ThemeToggle floating />
         <main className="app-main">
           <InstallPage onContinue={() => setShowInstall(false)} />
         </main>
@@ -27,6 +54,7 @@ function App() {
   if (supabaseConfigError) {
     return (
       <div className="app-shell">
+        <ThemeToggle floating />
         <main className="app-main">
           <p className="centered-message banner banner-error">{supabaseConfigError}</p>
         </main>
@@ -41,15 +69,13 @@ function App() {
         <div className="app-shell">
           <main className="app-main">
             <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route
-                path="/"
-                element={
-                  <ProtectedRoute>
-                    <TodayPage />
-                  </ProtectedRoute>
-                }
-              />
+              <Route element={<SignedOutLayout />}>
+                <Route path="/login" element={<LoginPage />} />
+              </Route>
+              <Route element={<SignedInLayout />}>
+                <Route path="/" element={<TodayPage />} />
+                <Route path="/conta" element={<AccountPage />} />
+              </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>

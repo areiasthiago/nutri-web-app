@@ -28,8 +28,11 @@ npm run dev
 ### 2. Rodar as migrations (criar as tabelas)
 
 1. No painel do Supabase, abra **SQL Editor → New query**.
-2. Abra o arquivo [`supabase/migrations/20261003000000_auth_and_profiles.sql`](supabase/migrations/20261003000000_auth_and_profiles.sql)
-   deste repositório, copie todo o conteúdo, cole no SQL Editor e clique em **Run**.
+2. Para cada arquivo de [`supabase/migrations/`](supabase/migrations/), **em ordem de nome**
+   (a data no começo do nome), copie todo o conteúdo, cole no SQL Editor e clique em **Run**.
+
+(No projeto atual isso já foi feito pelo Claude Code via MCP do Supabase; este passo vale para
+recriar o projeto do zero.)
 
 ### 3. Liberar seu e-mail (e o de uma conta de teste) para criar conta
 
@@ -85,19 +88,36 @@ No repositório, no GitHub:
 3. Dê um push na branch `main` (ou rode o workflow manualmente em **Actions**). Depois que a
    Action terminar (ícone verde), o app estará em `https://SEU-USUARIO.github.io/nutri-web-app/`.
 
-## O que já funciona nesta fatia
+### 9. Carregar o seu plano (seed)
+
+Depois do primeiro login da sua conta, rode no **SQL Editor** o arquivo
+`supabase/seed/plan_<nome>.local.sql` (fica **fora do Git**: tem dado de saúde e e-mail). Ele
+pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
+
+## O que já funciona
 
 - Login com Google e com e-mail/senha, restrito a e-mails convidados.
-- Mensagem amigável quando o e-mail não está autorizado, quando o Supabase está fora do ar,
-  ou quando e-mail/senha estão errados.
+- No celular, convite para instalar o app (primeira tela) e faixa lembrando de instalar
+  enquanto o app estiver aberto no navegador.
+- Tema claro/escuro seguindo o sistema, com botão para inverter.
+- Tela "Hoje": refeições do dia em ordem de horário, a próxima em destaque, alimentos,
+  quantidades e trocas; aviso do plano; meta de água e próximo horário do protocolo; soma das
+  refeições ao lado da meta do plano (sem "corrigir" nenhuma); observações.
+- Cabeçalho com menu da conta: "Minha conta" (nome para a saudação, fuso horário, definir ou
+  trocar senha) e "Sair".
 - Deploy automático para o GitHub Pages a cada push na `main`.
-- PWA instalável (ainda com ícone provisório — pode ser trocado depois).
 
-## O que ainda não existe (fica para as próximas fatias)
+## O que ainda não existe (próximas fatias)
 
-Conteúdo real da tela "Hoje" (refeições, trocas), marcar refeição como feita, registro de
-água, lembretes por notificação, histórico, edição manual do plano, envio de PDF, pessoas da
-casa e lista de compras — tudo listado em ordem no briefing, seção 11.
+Marcar refeição como feita (e escolher a troca usada), registro de água, lembretes por
+notificação, histórico, edição manual do plano, envio de PDF, pessoas da casa, lista de
+compras e apagar a conta pelo app — na ordem do briefing, seção 11.
+
+## Teste de isolamento entre usuários
+
+[`supabase/tests/rls_isolation.sql`](supabase/tests/rls_isolation.sql) confere que um usuário
+não lê nem altera nada de outro. Rode no SQL Editor depois de qualquer migration; ele desfaz
+tudo o que cria e mostra o resultado na mensagem de erro proposital no final.
 
 ## Observações importantes
 

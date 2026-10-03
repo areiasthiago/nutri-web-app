@@ -18,7 +18,11 @@ function MoonIcon() {
   )
 }
 
-export function ThemeToggle() {
+/**
+ * Inverte o tema atual. `floating`: fixo no canto da tela (telas sem
+ * cabeçalho, como login e convite); senão, fica dentro do cabeçalho.
+ */
+export function ThemeToggle({ floating = false }: { floating?: boolean }) {
   const [theme, setThemeState] = useState(currentTheme)
 
   // Sem escolha salva, acompanha quando o sistema muda de tema.
@@ -33,7 +37,13 @@ export function ThemeToggle() {
   const label = theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'
 
   return (
-    <button type="button" className="theme-toggle" onClick={toggle} aria-label={label} title={label}>
+    <button
+      type="button"
+      className={floating ? 'icon-button theme-toggle-floating' : 'icon-button'}
+      onClick={toggle}
+      aria-label={label}
+      title={label}
+    >
       {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
     </button>
   )

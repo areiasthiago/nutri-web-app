@@ -1,0 +1,181 @@
+import { useState } from 'react'
+import type { FormEvent } from 'react'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../auth/AuthProvider'
+import { useProfile } from '../lib/profile'
+
+// Fusos do Brasil. Se o perfil tiver outro (ex.: alguém morando fora), ele
+// entra na lista também, para o select não "perder" o valor salvo.
+const BRAZIL_TIMEZONES: { value: string; label: string }[] = [
+  { value: 'America/Sao_Paulo', label: 'Horário de Brasília' },
+  { value: 'America/Manaus', label: 'Amazonas, RO, RR (−1h)' },
+  { value: 'America/Cuiaba', label: 'MT e MS (−1h)' },
+  { value: 'America/Rio_Branco', label: 'Acre (−2h)' },
+  { value: 'America/Noronha', label: 'Fernando de Noronha (+1h)' },
+]
+
+function providerLabel(providers: unknown): string {
+  const list = Array.isArray(providers) ? providers : []
+  const names = list.map((p) => (p === 'google' ? 'Google' : p === 'email' ? 'e-mail e senha' : String(p)))
+  return names.length ? names.join(' e ') : 'e-mail e senha'
+}
+
+export function AccountPage() {
+  const { session, signOut, updatePassword } = useAuth()
+  const { profile, loaded, saveProfile } = useProfile()
+
+  return (
+    <div className="page">
+      <Link to="/" className="back-link">
+        ← Voltar para Hoje
+      </Link>
+      <h1 className="page-title">Minha conta</h1>
+
+      <section className="info-card">
+        <h2>Acesso</h2>
+        <p>
+          <span className="muted">E-mail</span>
+          <br />
+          <strong>{session?.user.email}</strong>
+        </p>
+        <p>
+          <span className="muted">Entra com</span>
+          <br />
+          {providerLabel(session?.user.app_metadata.providers)}
+        </p>
+      </section>
+
+      {/* Monta só depois que o perfil chega, para o formulário começar com os dados salvos. */}
+      {loaded && <ProfileForm initial={profile} onSave={saveProfile} />}
+
+      <PasswordForm onSave={updatePassword} />
+
+      <button type="button" className="btn btn-outline" onClick={() => signOut()}>
+        Sair da conta
+      </button>
+      <p className="muted account-footnote">
+        Para trocar o e-mail ou apagar a conta, fale com seu nutri por enquanto. Apagar a conta pelo
+        próprio app chega numa próxima atualização.
+      </p>
+    </div>
+  )
+}
+
+function ProfileForm({
+  initial,
+  onSave,
+}: {
+  initial: { display_name: string | null; timezone: string }
+  onSave: (changes: { display_name: string | null; timezone: string }) => Promise<{ error: string | null }>
+}) {
+  const [name, setName] = useState(initial.display_name ?? '')
+  const [timezone, setTimezone] = useState(initial.timezone)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<{ kind: 'info' | 'error'; text: string } | null>(null)
+
+  const options = BRAZIL_TIMEZONES.some((t) => t.value === initial.timezone)
+    ? BRAZIL_TIMEZONES
+    : [...BRAZIL_TIMEZONES, { value: initial.timezone, label: initial.timezone }]
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setMessage(null)
+    const { error } = await onSave({ display_name: name.trim() || null, timezone })
+    setMessage(error ? { kind: 'error', text: error } : { kind: 'info', text: 'Dados salvos.' })
+    setSaving(false)
+  }
+
+  return (
+    <form className="info-card form-card" onSubmit={handleSubmit}>
+      <h2>Seus dados</h2>
+      <label className="field">
+        <span>Como quer ser chamado</span>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={40}
+          autoComplete="nickname"
+          placeholder="Ex.: Thiago"
+        />
+      </label>
+      <label className="field">
+        <span>Fuso horário</span>
+        <select value={timezone} onChange={(e) => setTimezone(e.target.value)}>
+          {options.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+        <small className="muted">Define quando começa o seu dia e os horários das refeições.</small>
+      </label>
+      {message && <p className={`banner banner-${message.kind}`}>{message.text}</p>}
+      <button type="submit" className="btn btn-primary" disabled={saving}>
+        {saving ? 'Salvando…' : 'Salvar'}
+      </button>
+    </form>
+  )
+}
+
+function PasswordForm({ onSave }: { onSave: (password: string) => Promise<{ error: string | null }> }) {
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<{ kind: 'info' | 'error'; text: string } | null>(null)
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    setMessage(null)
+    if (password !== confirm) {
+      setMessage({ kind: 'error', text: 'As duas senhas não são iguais.' })
+      return
+    }
+    setSaving(true)
+    const { error } = await onSave(password)
+    if (error) {
+      setMessage({ kind: 'error', text: error })
+    } else {
+      setMessage({ kind: 'info', text: 'Senha salva. Você já pode entrar com e-mail e senha.' })
+      setPassword('')
+      setConfirm('')
+    }
+    setSaving(false)
+  }
+
+  return (
+    <form className="info-card form-card" onSubmit={handleSubmit}>
+      <h2>Senha</h2>
+      <p className="muted">
+        Defina ou troque a senha para entrar com e-mail, mesmo que tenha criado a conta pelo Google.
+      </p>
+      <label className="field">
+        <span>Nova senha</span>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          minLength={6}
+          required
+          autoComplete="new-password"
+        />
+      </label>
+      <label className="field">
+        <span>Repita a nova senha</span>
+        <input
+          type="password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          minLength={6}
+          required
+          autoComplete="new-password"
+        />
+      </label>
+      {message && <p className={`banner banner-${message.kind}`}>{message.text}</p>}
+      <button type="submit" className="btn btn-primary" disabled={saving}>
+        {saving ? 'Salvando…' : 'Salvar senha'}
+      </button>
+    </form>
+  )
+}

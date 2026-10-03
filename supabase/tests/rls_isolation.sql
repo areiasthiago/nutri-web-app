@@ -5,7 +5,7 @@
 -- um erro proposital "RESULTADO (transação desfeita): ...", que desfaz tudo:
 -- nenhum dado fica no banco. Leia o resultado na mensagem de erro.
 --
--- Esperado: A vê 1; todos os "B ..." com 0 ou "bloqueado"; anônimo vê 0;
+-- Esperado: A vê 1 e altera o próprio perfil (1); todos os "B ..." com 0 ou "bloqueado"; anônimo vê 0;
 -- plano de A intacto: 1. Qualquer "PERMITIU" é falha grave.
 --
 -- Como rodar: cole no SQL Editor do Supabase e clique em Run. Ao criar tabela
@@ -36,6 +36,8 @@ begin
   insert into public.substitutions (item_id, text) select id, 'Batata' from i;
   insert into public.hydration_slots (plan_id, time, ml) values (plan_a, '08:00', 300);
   select count(*) into n from public.plans; report := report || 'A vê planos: ' || n || '; ';
+  update public.profiles set display_name = 'A' where id = a;
+  get diagnostics n = row_count; report := report || 'A altera o próprio perfil: ' || n || '; ';
 
   -- Usuário B tenta ler, alterar, apagar e escrever no que é de A
   execute 'reset role';
@@ -47,6 +49,8 @@ begin
   select count(*) into n from public.substitutions; report := report || 'B vê trocas: ' || n || '; ';
   select count(*) into n from public.hydration_slots; report := report || 'B vê água: ' || n || '; ';
   select count(*) into n from public.profiles where id = a; report := report || 'B vê perfil de A: ' || n || '; ';
+  update public.profiles set display_name = 'alterado' where id = a;
+  get diagnostics n = row_count; report := report || 'B altera perfil de A: ' || n || '; ';
   update public.plans set name = 'alterado' where id = plan_a;
   get diagnostics n = row_count; report := report || 'B altera plano de A: ' || n || '; ';
   delete from public.meals where plan_id = plan_a;
