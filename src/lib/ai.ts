@@ -48,13 +48,14 @@ function fileToBase64(file: File): Promise<string> {
 export const MAX_PDF_MB = 10
 
 type ExtractResult =
-  | { ok: true; plan: ExtractedPlan; costUsd: number }
-  | { ok: false; error: string }
+  | { ok: true; plan: ExtractedPlan; costUsd: number; extractionId: string | null }
+  /** network: a resposta não chegou (conexão caiu); a leitura pode ter terminado no servidor. */
+  | { ok: false; error: string; network: boolean }
 
 /** Manda o PDF para a Edge Function ai-extract-plan (Claude) e devolve o plano lido. */
 export async function extractPlanFromPdf(file: File): Promise<ExtractResult> {
   if (file.size > MAX_PDF_MB * 1024 * 1024) {
-    return { ok: false, error: `O PDF passa de ${MAX_PDF_MB} MB.` }
+    return { ok: false, error: `O PDF passa de ${MAX_PDF_MB} MB.`, network: false }
   }
   const pdf_base64 = await fileToBase64(file)
   const { data, error } = await client.functions.invoke('ai-extract-plan', { body: { pdf_base64 } })
@@ -64,14 +65,52 @@ export async function extractPlanFromPdf(file: File): Promise<ExtractResult> {
     if (error instanceof FunctionsHttpError) {
       try {
         const body = await error.context.json()
-        if (body?.error) return { ok: false, error: String(body.error) }
+        if (body?.error) return { ok: false, error: String(body.error), network: false }
       } catch {
         // corpo sem JSON: cai na mensagem genérica
       }
     }
-    return { ok: false, error: 'Não foi possível falar com a IA agora. Confira a internet e tente de novo.' }
+    return {
+      ok: false,
+      error: 'Não foi possível falar com a IA agora. Confira a internet e tente de novo.',
+      network: true,
+    }
   }
-  return { ok: true, plan: data.plan as ExtractedPlan, costUsd: Number(data.usage?.cost_usd ?? 0) }
+  return {
+    ok: true,
+    plan: data.plan as ExtractedPlan,
+    costUsd: Number(data.usage?.cost_usd ?? 0),
+    extractionId: data.extraction_id ?? null,
+  }
+}
+
+export type SavedExtraction = { id: string; plan: ExtractedPlan; costUsd: number; createdAt: Date }
+
+/**
+ * Última leitura de PDF guardada (até 24 h), ainda não salva nem descartada.
+ * `since`: só leituras feitas depois desse momento.
+ */
+export async function fetchLatestExtraction(since?: Date): Promise<SavedExtraction | null> {
+  const from = since ?? new Date(Date.now() - 24 * 60 * 60 * 1000)
+  const { data } = await client
+    .from('ai_plan_extractions')
+    .select('id, plan, cost_usd, created_at')
+    .gte('created_at', from.toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (!data) return null
+  return {
+    id: data.id,
+    plan: data.plan as ExtractedPlan,
+    costUsd: Number(data.cost_usd),
+    createdAt: new Date(data.created_at),
+  }
+}
+
+/** Apaga a leitura guardada (depois de salvar o plano ou descartar). */
+export async function deleteExtraction(id: string): Promise<void> {
+  await client.from('ai_plan_extractions').delete().eq('id', id)
 }
 
 export function formatUsd(n: number): string {

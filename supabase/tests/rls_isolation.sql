@@ -24,6 +24,11 @@ begin
     (a, 'rls-test-a@example.com', 'authenticated', 'authenticated'),
     (b, 'rls-test-b@example.com', 'authenticated', 'authenticated');
 
+  -- Dados de IA de A (gravados pelo servidor, como a Edge Function faz)
+  insert into public.ai_access (user_id) values (a);
+  insert into public.ai_usage (user_id, feature, model, cost_usd) values (a, 'teste', 'teste', 0.01);
+  insert into public.ai_plan_extractions (user_id, plan) values (a, '{"meals": []}');
+
   -- Usuário A cria um plano com uma refeição, um item, uma troca e um horário de água
   perform set_config('request.jwt.claims', json_build_object('sub', a, 'role', 'authenticated')::text, true);
   execute 'set local role authenticated';
@@ -36,6 +41,7 @@ begin
   insert into public.substitutions (item_id, text) select id, 'Batata' from i;
   insert into public.hydration_slots (plan_id, time, ml) values (plan_a, '08:00', 300);
   select count(*) into n from public.plans; report := report || 'A vê planos: ' || n || '; ';
+  select count(*) into n from public.ai_plan_extractions; report := report || 'A vê a própria leitura PDF: ' || n || '; ';
   update public.profiles set display_name = 'A' where id = a;
   get diagnostics n = row_count; report := report || 'A altera o próprio perfil: ' || n || '; ';
 
@@ -49,6 +55,17 @@ begin
   select count(*) into n from public.substitutions; report := report || 'B vê trocas: ' || n || '; ';
   select count(*) into n from public.hydration_slots; report := report || 'B vê água: ' || n || '; ';
   select count(*) into n from public.profiles where id = a; report := report || 'B vê perfil de A: ' || n || '; ';
+  select count(*) into n from public.ai_access; report := report || 'B vê acesso IA de A: ' || n || '; ';
+  select count(*) into n from public.ai_usage; report := report || 'B vê uso IA de A: ' || n || '; ';
+  select count(*) into n from public.ai_plan_extractions; report := report || 'B vê leitura PDF de A: ' || n || '; ';
+  delete from public.ai_plan_extractions where user_id = a;
+  get diagnostics n = row_count; report := report || 'B apaga leitura PDF de A: ' || n || '; ';
+  begin
+    insert into public.ai_access (user_id) values (b);
+    report := report || 'B se torna VIP: PERMITIU; ';
+  exception when others then
+    report := report || 'B se torna VIP: bloqueado (' || sqlstate || '); ';
+  end;
   update public.profiles set display_name = 'alterado' where id = a;
   get diagnostics n = row_count; report := report || 'B altera perfil de A: ' || n || '; ';
   update public.plans set name = 'alterado' where id = plan_a;

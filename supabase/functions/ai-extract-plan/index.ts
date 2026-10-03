@@ -1,5 +1,7 @@
 // Lê o PDF de um plano alimentar com o Claude e devolve o plano estruturado,
-// para o app mostrar na tela de revisão (nada é salvo aqui).
+// para o app mostrar na tela de revisão. O plano em si só é salvo depois da
+// revisão; aqui fica guardada apenas a leitura (ai_plan_extractions), para
+// não se perder se a conexão do celular cair durante a espera.
 //
 // Acesso: só usuários VIP (tabela ai_access) que aceitaram o termo e ainda
 // têm saldo no teto mensal. Cada chamada grava tokens e custo em ai_usage.
@@ -7,6 +9,8 @@
 // Segredos (Supabase -> Edge Functions -> Secrets):
 //   ANTHROPIC_API_KEY  chave da API da Anthropic (obrigatório)
 //   AI_MODEL           opcional; padrão claude-opus-5-5
+//   AI_EFFORT          opcional; padrão low (transcrever não pede raciocínio
+//                      longo, e o raciocínio é cobrado como saída)
 // SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já vêm prontos no ambiente.
 //
 // Privacidade: o conteúdo do PDF e do plano nunca vai para os logs.
@@ -135,6 +139,11 @@ Deno.serve(async (req) => {
   if (!apiKey) return json({ error: "A IA ainda não foi configurada no servidor." }, 503)
   const model = Deno.env.get("AI_MODEL") || "claude-opus-5-5"
   const price = PRICES[model] ?? PRICES["claude-opus-5-5"]
+  const effort = Deno.env.get("AI_EFFORT") || "low"
+  // O Haiku 4.5 não aceita "effort".
+  const outputConfig = model.startsWith("claude-haiku")
+    ? { format: { type: "json_schema", schema: PLAN_SCHEMA } }
+    : { effort, format: { type: "json_schema", schema: PLAN_SCHEMA } }
 
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -191,10 +200,7 @@ Deno.serve(async (req) => {
       model,
       max_tokens: 16000,
       system: SYSTEM,
-      output_config: {
-        effort: "medium",
-        format: { type: "json_schema", schema: PLAN_SCHEMA },
-      },
+      output_config: outputConfig,
       messages: [
         {
           role: "user",
@@ -257,5 +263,13 @@ Deno.serve(async (req) => {
     return json({ error: "A IA devolveu uma resposta incompleta. Tente de novo.", usage }, 502)
   }
 
-  return json({ plan, usage })
+  // Guarda o resultado antes de responder: se a conexão do celular cair
+  // durante a espera, o app busca a leitura aqui em vez de perdê-la.
+  const { data: saved } = await admin
+    .from("ai_plan_extractions")
+    .insert({ user_id: userId, plan, cost_usd: cost })
+    .select("id")
+    .single()
+
+  return json({ plan, usage, extraction_id: saved?.id ?? null })
 })

@@ -1,20 +1,38 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { PlanEditor } from '../components/PlanEditor'
-import { MAX_PDF_MB, acceptAiTerms, extractPlanFromPdf, fetchAiAccess, formatUsd } from '../lib/ai'
-import type { AiAccess } from '../lib/ai'
+import {
+  MAX_PDF_MB,
+  acceptAiTerms,
+  deleteExtraction,
+  extractPlanFromPdf,
+  fetchAiAccess,
+  fetchLatestExtraction,
+  formatUsd,
+} from '../lib/ai'
+import type { AiAccess, SavedExtraction } from '../lib/ai'
 import { draftFromExtracted, emptyDraft, saveDraftAsActivePlan } from '../lib/planDraft'
 import type { PlanDraft } from '../lib/planDraft'
 
 type Step =
   | { kind: 'choose' }
   | { kind: 'reading'; fileName: string }
-  | { kind: 'review'; draft: PlanDraft; costUsd: number | null }
+  | { kind: 'review'; draft: PlanDraft; costUsd: number | null; extractionId: string | null }
+
+// Se a conexão cair durante a leitura, o app procura o resultado guardado no
+// servidor por até este tempo (a leitura costuma levar 30-90 s).
+const RECOVER_TIMEOUT_MS = 150_000
+const RECOVER_INTERVAL_MS = 5_000
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
+
+const timeLabel = (d: Date) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 
 /** Novo plano: ler do PDF com IA (VIP) ou montar à mão, sempre com revisão antes de salvar. */
 export function NewPlanPage() {
   const navigate = useNavigate()
   const [access, setAccess] = useState<AiAccess | null>(null)
+  const [pending, setPending] = useState<SavedExtraction | null>(null)
   const [step, setStep] = useState<Step>({ kind: 'choose' })
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -23,10 +41,30 @@ export function NewPlanPage() {
   useEffect(() => {
     let active = true
     fetchAiAccess().then((a) => active && setAccess(a))
+    // Leitura que terminou mas não foi revisada (ex.: o app fechou na espera).
+    fetchLatestExtraction().then((e) => active && setPending(e))
     return () => {
       active = false
     }
   }, [])
+
+  function review(extraction: { plan: SavedExtraction['plan']; costUsd: number; id: string | null }) {
+    if (extraction.plan.meals.length === 0) {
+      setError(
+        extraction.plan.warnings[0] ?? 'A IA não encontrou refeições neste PDF. Confira o arquivo ou monte o plano à mão.',
+      )
+      if (extraction.id) deleteExtraction(extraction.id)
+      setPending(null)
+      setStep({ kind: 'choose' })
+      return
+    }
+    setStep({
+      kind: 'review',
+      draft: draftFromExtracted(extraction.plan),
+      costUsd: extraction.costUsd,
+      extractionId: extraction.id,
+    })
+  }
 
   async function handleAccept() {
     setError(null)
@@ -41,26 +79,42 @@ export function NewPlanPage() {
       setError('Escolha um arquivo PDF.')
       return
     }
+    const startedAt = new Date(Date.now() - 5_000) // folga para relógios diferentes
     setStep({ kind: 'reading', fileName: file.name })
     const result = await extractPlanFromPdf(file)
     if (fileInput.current) fileInput.current.value = ''
+
+    if (result.ok) {
+      fetchAiAccess().then(setAccess)
+      review({ plan: result.plan, costUsd: result.costUsd, id: result.extractionId })
+      return
+    }
+
+    if (result.network) {
+      // A resposta não chegou, mas a leitura pode ter terminado no servidor.
+      const deadline = Date.now() + RECOVER_TIMEOUT_MS
+      while (Date.now() < deadline) {
+        const found = await fetchLatestExtraction(startedAt)
+        if (found) {
+          fetchAiAccess().then(setAccess)
+          review({ plan: found.plan, costUsd: found.costUsd, id: found.id })
+          return
+        }
+        await sleep(RECOVER_INTERVAL_MS)
+      }
+    }
+
     fetchAiAccess().then(setAccess)
-    if (!result.ok) {
-      setError(result.error)
-      setStep({ kind: 'choose' })
-      return
-    }
-    if (result.plan.meals.length === 0) {
-      setError(
-        result.plan.warnings[0] ?? 'A IA não encontrou refeições neste PDF. Confira o arquivo ou monte o plano à mão.',
-      )
-      setStep({ kind: 'choose' })
-      return
-    }
-    setStep({ kind: 'review', draft: draftFromExtracted(result.plan), costUsd: result.costUsd })
+    setError(result.error)
+    setStep({ kind: 'choose' })
   }
 
-  async function handleSave(draft: PlanDraft) {
+  async function handleDiscardPending() {
+    if (pending) await deleteExtraction(pending.id)
+    setPending(null)
+  }
+
+  async function handleSave(draft: PlanDraft, extractionId: string | null) {
     setSaving(true)
     const { error: saveError } = await saveDraftAsActivePlan(draft)
     setSaving(false)
@@ -69,6 +123,7 @@ export function NewPlanPage() {
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
+    if (extractionId) await deleteExtraction(extractionId)
     navigate('/', { replace: true })
   }
 
@@ -86,9 +141,11 @@ export function NewPlanPage() {
         <PlanEditor
           initial={step.draft}
           saving={saving}
-          onSave={handleSave}
+          onSave={(draft) => handleSave(draft, step.extractionId)}
           onCancel={() => {
             setError(null)
+            // A leitura continua guardada: dá para voltar a ela pelo aviso.
+            fetchLatestExtraction().then(setPending)
             setStep({ kind: 'choose' })
           }}
         />
@@ -113,8 +170,27 @@ export function NewPlanPage() {
           <h2>Lendo o seu plano…</h2>
           <p className="muted">
             A IA está transcrevendo <strong>{step.fileName}</strong>. Costuma levar de 30 segundos a 1 minuto e
-            meio. Não feche o app.
+            meio. Se a tela apagar, tudo bem: a leitura fica guardada e aparece aqui quando você voltar.
           </p>
+        </section>
+      )}
+
+      {step.kind === 'choose' && pending && (
+        <section className="info-card form-card pending-card">
+          <h2>Leitura pronta</h2>
+          <p className="muted">
+            Você tem um PDF lido às {timeLabel(pending.createdAt)} que ainda não foi revisado.
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => review({ plan: pending.plan, costUsd: pending.costUsd, id: pending.id })}
+          >
+            Revisar e salvar
+          </button>
+          <button type="button" className="btn-link" onClick={handleDiscardPending}>
+            Descartar esta leitura
+          </button>
         </section>
       )}
 
@@ -136,8 +212,8 @@ export function NewPlanPage() {
                 <p>Antes de usar a IA, leia como ela funciona:</p>
                 <ul className="terms-list">
                   <li>
-                    O PDF é enviado ao <strong>Claude</strong>, da empresa Anthropic, só para ser transcrito. Ele
-                    não fica guardado no app.
+                    O PDF é enviado ao <strong>Claude</strong>, da empresa Anthropic, só para ser transcrito. O
+                    arquivo não fica guardado no app; só a transcrição, até você salvar ou descartar.
                   </li>
                   <li>Pelas regras da Anthropic, o que é enviado pela API não é usado para treinar a IA.</li>
                   <li>A IA pode errar. Você revisa e corrige tudo antes de salvar.</li>
@@ -180,7 +256,7 @@ export function NewPlanPage() {
             <button
               type="button"
               className="btn btn-outline-neutral"
-              onClick={() => setStep({ kind: 'review', draft: emptyDraft(), costUsd: null })}
+              onClick={() => setStep({ kind: 'review', draft: emptyDraft(), costUsd: null, extractionId: null })}
             >
               Começar do zero
             </button>

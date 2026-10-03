@@ -909,3 +909,7 @@ input {
   background: var(--bg);
   border-top: 1px solid var(--border);
 }
+
+.pending-card {
+  border: 2px solid var(--primary);
+}
