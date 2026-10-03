@@ -7,6 +7,11 @@
   --carrot: #f09820;
   --blue: #2f8fd1;
 
+  /* Botão primário: no claro é o verde do logo; no escuro, um verde mais
+     claro para não sumir no fundo (texto branco 4.9:1, botão x fundo 3.7:1). */
+  --primary: var(--green);
+  --primary-hover: var(--green-dark);
+
   --bg: #ffffff;
   --surface: #f6f8f7;
   --text: #16201b;
@@ -35,6 +40,8 @@
     --error-text: #ff9c8b;
     --info-bg: #15271f;
     --info-text: #7fd4ac;
+    --primary: #237f58;
+    --primary-hover: #1a6b4a;
   }
 }
 
@@ -133,6 +140,17 @@ input {
   margin: 0 auto 4px;
 }
 
+/* A tigela do logo é verde-escura e some no fundo escuro: no modo escuro o
+   logo ganha um fundo branco arredondado, igual ao ícone do app. */
+@media (prefers-color-scheme: dark) {
+  .login-logo {
+    box-sizing: content-box;
+    padding: 10px;
+    border-radius: 22px;
+    background: #ffffff;
+  }
+}
+
 .login-card h1 {
   margin: 0;
   font-size: 26px;
@@ -225,12 +243,12 @@ input {
 }
 
 .btn-primary {
-  background: var(--green);
+  background: var(--primary);
   color: #fff;
 }
 
 .btn-primary:not(:disabled):hover {
-  background: var(--green-dark);
+  background: var(--primary-hover);
 }
 
 .btn-google {

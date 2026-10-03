@@ -18,7 +18,7 @@ export default defineConfig({
         start_url: '/nutri-web-app/',
         scope: '/nutri-web-app/',
         display: 'standalone',
-        background_color: '#ffffff',
+        background_color: '#104030',
         theme_color: '#104030',
         icons: [
           {

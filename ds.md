@@ -81,7 +81,13 @@ nos tamanhos acima).
   exigência do briefing (interface pensada para celular, alvos de toque grandes).
 - Raio de borda: `10px` em campos de input, `12px` em botões — cantos suaves, consistentes
   com o estilo arredondado do próprio logo (folhas e tigela sem cantos vivos).
-- Botão primário (`.btn-primary`): fundo `--green`, texto branco, hover `--green-dark`.
+- Botão primário (`.btn-primary`): fundo `--primary`, texto branco, hover `--primary-hover`.
+  No claro, `--primary` = `--green` / `--green-dark`. No escuro, `#237f58` / `#1a6b4a`:
+  o verde do logo some no fundo escuro (contraste 1.6:1); este tom mantém texto branco em
+  4.9:1 e o botão em 3.7:1 contra `--bg`.
+- Logo no modo escuro (`.login-logo`): ganha fundo branco com cantos arredondados, igual ao
+  ícone do PWA — a tigela verde-escura sumiria no fundo escuro, e recolorir o símbolo não é
+  permitido (ver "Logo").
 - Botão secundário "Google" (`.btn-google`): fundo neutro (`--bg`), borda `--border` — não
   usa a paleta de marca, para não competir com o ícone oficial do Google.
 - Banners de mensagem (`.banner-error`, `.banner-info`): fundo suave + texto escuro da
