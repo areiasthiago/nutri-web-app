@@ -1,0 +1,34 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Segredos locais e dados pessoais - nunca versionar (repositório é público)
+.env
+.env.local
+.env.*.local
+supabase/seed/*.sql
+!supabase/seed/*.example.sql
+
+# Briefing contém o plano alimentar real do Thiago (dado de saúde) - fica só local.
+refs/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
