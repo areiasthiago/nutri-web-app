@@ -12,6 +12,7 @@ import { supabaseConfigError } from './lib/supabaseClient'
 import { AccountPage } from './pages/AccountPage'
 import { InstallPage } from './pages/InstallPage'
 import { LoginPage } from './pages/LoginPage'
+import { NewPlanPage } from './pages/NewPlanPage'
 import { TodayPage } from './pages/TodayPage'
 
 /** Telas logadas: cabeçalho com marca, tema e menu da conta. */
@@ -75,6 +76,7 @@ function App() {
               <Route element={<SignedInLayout />}>
                 <Route path="/" element={<TodayPage />} />
                 <Route path="/conta" element={<AccountPage />} />
+                <Route path="/plano/novo" element={<NewPlanPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

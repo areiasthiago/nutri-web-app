@@ -67,6 +67,9 @@ export function AppHeader() {
               {profile.display_name && <strong>{profile.display_name}</strong>}
               <span>{session?.user.email}</span>
             </div>
+            <Link to="/plano/novo" className="account-menu-item" onClick={() => setMenuOpen(false)}>
+              Novo plano
+            </Link>
             <Link to="/conta" className="account-menu-item" onClick={() => setMenuOpen(false)}>
               Minha conta
             </Link>

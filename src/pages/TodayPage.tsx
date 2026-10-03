@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   fetchActivePlan,
   formatIn,
@@ -24,13 +25,15 @@ function useNow() {
   return now
 }
 
-function MacroLine({ totals }: { totals: Totals }) {
-  return (
-    <>
-      {formatNumber(totals.kcal)} kcal · P {formatNumber(totals.protein_g)} g · C{' '}
-      {formatNumber(totals.carbs_g)} g · G {formatNumber(totals.fat_g)} g
-    </>
-  )
+/** "1.461 kcal · P 155 g · C 114 g · G 40 g"; partes sem valor (null) são omitidas. */
+function MacroLine({ totals }: { totals: { [K in keyof Totals]: number | null } }) {
+  const parts = [
+    totals.kcal !== null && `${formatNumber(totals.kcal)} kcal`,
+    totals.protein_g !== null && `P ${formatNumber(totals.protein_g)} g`,
+    totals.carbs_g !== null && `C ${formatNumber(totals.carbs_g)} g`,
+    totals.fat_g !== null && `G ${formatNumber(totals.fat_g)} g`,
+  ].filter(Boolean)
+  return <>{parts.join(' · ')}</>
 }
 
 function MealCard({ meal, badge }: { meal: Meal; badge: string | null }) {
@@ -109,9 +112,10 @@ export function TodayPage() {
       {state.status === 'ready' && !state.plan && (
         <div className="empty-state">
           <p>Você ainda não tem um plano alimentar cadastrado.</p>
-          <p className="muted">
-            Em breve vai dar para enviar o PDF do seu nutricionista ou cadastrar o plano à mão.
-          </p>
+          <p className="muted">Envie o PDF do seu nutricionista ou monte o plano à mão.</p>
+          <Link to="/plano/novo" className="btn btn-primary btn-link-as-button">
+            Cadastrar meu plano
+          </Link>
         </div>
       )}
 
@@ -182,9 +186,9 @@ function PlanView({ plan, now }: { plan: Plan; now: number }) {
             <MacroLine
               totals={{
                 kcal: plan.target_kcal,
-                protein_g: plan.target_protein_g ?? 0,
-                carbs_g: plan.target_carbs_g ?? 0,
-                fat_g: plan.target_fat_g ?? 0,
+                protein_g: plan.target_protein_g,
+                carbs_g: plan.target_carbs_g,
+                fat_g: plan.target_fat_g,
               }}
             />
           </p>

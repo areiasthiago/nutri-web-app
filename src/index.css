@@ -703,3 +703,209 @@ input {
   gap: 6px;
   font-size: 15px;
 }
+
+/* Novo plano e editor de revisão */
+
+.page-lead {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.btn-link-as-button,
+.btn-file {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.btn-file.is-disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.btn-outline-neutral {
+  background: none;
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.terms-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.reading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 24px 16px;
+}
+
+.reading-card h2,
+.reading-card p {
+  margin: 0;
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 4px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.plan-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.plan-editor .info-card {
+  margin-bottom: 0;
+}
+
+.plan-editor .banner ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.editor-section-title {
+  margin: 12px 0 0;
+  font-size: 18px;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.field-grid-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.field input,
+.field textarea,
+.editor-slot input {
+  min-width: 0;
+  width: 100%;
+}
+
+.field textarea {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.field-caption {
+  font-size: 14px;
+}
+
+.editor-meal-head,
+.editor-item-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.field-time {
+  flex: 0 0 110px;
+}
+
+.field-grow {
+  flex: 1;
+  min-width: 0;
+}
+
+.remove-button {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.editor-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.editor-more summary {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  color: var(--blue);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.editor-more[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor-slot {
+  display: grid;
+  grid-template-columns: 96px 72px 1fr 44px;
+  gap: 6px;
+  align-items: center;
+}
+
+.editor-slot input {
+  padding: 10px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 44px;
+  font: inherit;
+}
+
+.editor-save-note {
+  margin: 4px 0 0;
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Barra fixa e baixa: Cancelar + Salvar lado a lado. */
+.editor-actions {
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  padding: 8px 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
