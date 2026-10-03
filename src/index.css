@@ -913,3 +913,9 @@ input {
 .pending-card {
   border: 2px solid var(--primary);
 }
+
+.retry-ai {
+  align-self: flex-start;
+  margin: -6px 0 6px;
+  padding-left: 0;
+}

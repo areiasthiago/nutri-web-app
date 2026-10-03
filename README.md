@@ -103,6 +103,12 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
 - Tela "Hoje": refeições do dia em ordem de horário, a próxima em destaque, alimentos,
   quantidades e trocas; aviso do plano; meta de água e próximo horário do protocolo; soma das
   refeições ao lado da meta do plano (sem "corrigir" nenhuma); observações.
+- Novo plano (menu ☰ ou tela Hoje vazia), em camadas:
+  1. o celular lê o PDF sem IA e sem enviá-lo (pdf.js + interpretador em
+     `src/lib/planParser.ts`, com testes em `npm test`);
+  2. se a leitura ficar fraca, quem é VIP pode ler com IA (Claude, via Edge Function
+     `ai-extract-plan`, com teto mensal por usuário e registro de custo);
+  3. sempre dá para montar à mão. Tudo cai na mesma tela de revisão antes de salvar.
 - Cabeçalho com menu da conta: "Minha conta" (nome para a saudação, fuso horário, definir ou
   trocar senha) e "Sair".
 - Deploy automático para o GitHub Pages a cada push na `main`.
@@ -112,6 +118,14 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
 Marcar refeição como feita (e escolher a troca usada), registro de água, lembretes por
 notificação, histórico, edição manual do plano, envio de PDF, pessoas da casa, lista de
 compras e apagar a conta pelo app — na ordem do briefing, seção 11.
+
+## IA (só VIP)
+
+- Quem é VIP: tabela `ai_access` (o app só lê). Para liberar alguém, no SQL Editor:
+  `insert into ai_access (user_id, monthly_limit_usd) select id, 1.00 from auth.users where email = '...';`
+- Segredos em **Edge Functions → Secrets**: `ANTHROPIC_API_KEY` (obrigatório), `AI_MODEL`
+  (opcional, padrão `claude-opus-5-5`) e `AI_EFFORT` (opcional, padrão `low`).
+- Gasto por usuário e por chamada: tabela `ai_usage`.
 
 ## Teste de isolamento entre usuários
 
