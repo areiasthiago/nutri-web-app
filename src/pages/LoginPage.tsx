@@ -62,7 +62,7 @@ export function LoginPage() {
       <div className="login-card">
         <img src={logoMark} alt="" className="login-logo" width={56} height={56} />
         <h1>Nutri Helper</h1>
-        <p className="login-subtitle">Entre para ver seu plano alimentar e de água.</p>
+        <p className="login-subtitle">Entre para ver seu plano alimentar, meta de água, lista de compra e muito mais.</p>
 
         {backendError && <p className="banner banner-error">{backendError}</p>}
         {error && <p className="banner banner-error">{error}</p>}
