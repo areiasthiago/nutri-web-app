@@ -149,6 +149,25 @@ input {
   color: var(--text-muted);
 }
 
+/* Convite para instalar (celular) */
+
+.install-steps {
+  margin: 0;
+  padding: 16px 16px 16px 36px;
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: left;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.inline-icon {
+  vertical-align: -3px;
+  color: var(--blue);
+}
+
 .divider {
   display: flex;
   align-items: center;
