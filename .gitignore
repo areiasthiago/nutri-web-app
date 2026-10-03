@@ -19,6 +19,9 @@ dist-ssr
 supabase/seed/*.sql
 !supabase/seed/*.example.sql
 
+# Cache local da CLI do Supabase
+supabase/.temp/
+
 # Briefing contém o plano alimentar real do Thiago (dado de saúde) - fica só local.
 refs/
 
