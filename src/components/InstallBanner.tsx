@@ -14,7 +14,7 @@ export function InstallBanner({ onInstall }: { onInstall: () => void }) {
 
   return (
     <div className="install-banner" role="region" aria-label="Instalar o app">
-      <span>Use o Nutri Helper como app no seu celular.</span>
+      <span>Instale o app no seu celular.</span>
       <button type="button" className="btn btn-primary btn-small" onClick={onInstall}>
         Instalar
       </button>

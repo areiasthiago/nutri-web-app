@@ -102,8 +102,8 @@ input {
 }
 
 .app-footer {
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-  font-size: 12px;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+  font-size: 11px;
   line-height: 1.4;
   color: var(--text-muted);
   text-align: center;
@@ -151,7 +151,7 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px 16px;
+  padding: 16px;
 }
 
 .login-card {
@@ -160,8 +160,22 @@ input {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 12px;
+  gap: 10px;
   text-align: center;
+}
+
+/* Login: logo e nome lado a lado, para a tela caber sem rolar no celular. */
+.login-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.login-brand .login-logo {
+  margin: 0;
+  padding: calc(var(--logo-pad) * 0.6);
+  border-radius: 12px;
 }
 
 /* A tigela do logo é verde-escura e some no fundo escuro: no modo escuro o
@@ -199,12 +213,12 @@ input {
 }
 
 .login-subtitle {
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   color: var(--text-muted);
 }
 
 .login-note {
-  margin-top: 8px;
+  margin: 0;
   font-size: 13px;
   color: var(--text-muted);
 }
@@ -231,7 +245,7 @@ input {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 16px;
+  padding: 8px 16px;
   background: var(--info-bg);
   color: var(--info-text);
   border-top: 1px solid var(--border);
@@ -255,7 +269,7 @@ input {
   gap: 8px;
   color: var(--text-muted);
   font-size: 13px;
-  margin: 4px 0;
+  margin: 0;
 }
 
 .divider::before,
