@@ -1,7 +1,11 @@
-import type { Session } from '@supabase/supabase-js'
+import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { supabase } from '../lib/supabaseClient'
+
+// AuthProvider only ever renders when src/App.tsx has already confirmed
+// supabaseConfigError is null, so `supabase` is guaranteed to be set here.
+const client = supabase as SupabaseClient
 
 type AuthContextValue = {
   session: Session | null
@@ -53,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true
 
-    supabase.auth
+    client.auth
       .getSession()
       .then(({ data, error }) => {
         if (!active) return
@@ -72,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (active) setLoading(false)
       })
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = client.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession)
       setBackendError(null)
     })
@@ -84,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   async function signInWithGoogle() {
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await client.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: redirectUrl() },
     })
@@ -92,12 +96,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signInWithPassword(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await client.auth.signInWithPassword({ email, password })
     return { error: error ? translateAuthError(error.message) : null }
   }
 
   async function signUpWithPassword(email: string, password: string) {
-    const { error } = await supabase.auth.signUp({
+    const { error } = await client.auth.signUp({
       email,
       password,
       options: { emailRedirectTo: redirectUrl() },
@@ -106,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
-    await supabase.auth.signOut()
+    await client.auth.signOut()
   }
 
   return (
