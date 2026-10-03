@@ -252,6 +252,36 @@ input {
   font-weight: 600;
 }
 
+/* Janela de baixo para cima com o passo a passo de instalação */
+
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.45);
+}
+
+.sheet {
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 16px calc(12px + env(safe-area-inset-bottom));
+  border-radius: 16px 16px 0 0;
+  background: var(--bg);
+  color: var(--text);
+  text-align: center;
+}
+
+.sheet h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
 .btn-small {
   min-height: 40px;
   flex-shrink: 0;

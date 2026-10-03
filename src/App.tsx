@@ -54,7 +54,7 @@ function App() {
             </Routes>
           </main>
           <Footer />
-          <InstallBanner onInstall={() => setShowInstall(true)} />
+          <InstallBanner />
         </div>
       </HashRouter>
     </AuthProvider>
