@@ -17,6 +17,8 @@ type AuthContextValue = {
   signUpWithPassword: (email: string, password: string) => Promise<{ error: string | null }>
   /** Define ou troca a senha da conta logada (serve também para quem entrou pelo Google). */
   updatePassword: (password: string) => Promise<{ error: string | null }>
+  /** Se a conta logada já tem senha (quem entrou pelo Google pode não ter). */
+  hasPassword: () => Promise<boolean>
   signOut: () => Promise<void>
 }
 
@@ -119,6 +121,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? translateAuthError(error.message) : null }
   }
 
+  async function hasPassword() {
+    const { data, error } = await client.rpc('current_user_has_password')
+    return !error && data === true
+  }
+
   async function signOut() {
     await client.auth.signOut()
   }
@@ -133,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithPassword,
         signUpWithPassword,
         updatePassword,
+        hasPassword,
         signOut,
       }}
     >

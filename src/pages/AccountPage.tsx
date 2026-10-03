@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
@@ -14,15 +14,28 @@ const BRAZIL_TIMEZONES: { value: string; label: string }[] = [
   { value: 'America/Noronha', label: 'Fernando de Noronha (+1h)' },
 ]
 
-function providerLabel(providers: unknown): string {
-  const list = Array.isArray(providers) ? providers : []
-  const names = list.map((p) => (p === 'google' ? 'Google' : p === 'email' ? 'e-mail e senha' : String(p)))
+// Quem entra pelo Google e cria senha continua só com "google" na sessão;
+// por isso a senha vem à parte (hasPassword).
+function providerLabel(providers: unknown, hasPassword: boolean): string {
+  const list = Array.isArray(providers) ? providers.map(String) : []
+  if (hasPassword && !list.includes('email')) list.push('email')
+  const names = list.map((p) => (p === 'google' ? 'Google' : p === 'email' ? 'e-mail e senha' : p))
   return names.length ? names.join(' e ') : 'e-mail e senha'
 }
 
 export function AccountPage() {
-  const { session, signOut, updatePassword } = useAuth()
+  const { session, signOut, updatePassword, hasPassword: checkHasPassword } = useAuth()
   const { profile, loaded, saveProfile } = useProfile()
+  // null enquanto confere no banco.
+  const [hasPassword, setHasPassword] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    let active = true
+    checkHasPassword().then((has) => active && setHasPassword(has))
+    return () => {
+      active = false
+    }
+  }, [checkHasPassword])
 
   return (
     <div className="page">
@@ -41,14 +54,16 @@ export function AccountPage() {
         <p>
           <span className="muted">Entra com</span>
           <br />
-          {providerLabel(session?.user.app_metadata.providers)}
+          {providerLabel(session?.user.app_metadata.providers, hasPassword === true)}
         </p>
       </section>
 
       {/* Monta só depois que o perfil chega, para o formulário começar com os dados salvos. */}
       {loaded && <ProfileForm initial={profile} onSave={saveProfile} />}
 
-      <PasswordForm onSave={updatePassword} />
+      {hasPassword !== null && (
+        <PasswordForm hasPassword={hasPassword} onSave={updatePassword} onSaved={() => setHasPassword(true)} />
+      )}
 
       <button type="button" className="btn btn-outline" onClick={() => signOut()}>
         Sair da conta
@@ -119,7 +134,15 @@ function ProfileForm({
   )
 }
 
-function PasswordForm({ onSave }: { onSave: (password: string) => Promise<{ error: string | null }> }) {
+function PasswordForm({
+  hasPassword,
+  onSave,
+  onSaved,
+}: {
+  hasPassword: boolean
+  onSave: (password: string) => Promise<{ error: string | null }>
+  onSaved: () => void
+}) {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [saving, setSaving] = useState(false)
@@ -137,19 +160,36 @@ function PasswordForm({ onSave }: { onSave: (password: string) => Promise<{ erro
     if (error) {
       setMessage({ kind: 'error', text: error })
     } else {
-      setMessage({ kind: 'info', text: 'Senha salva. Você já pode entrar com e-mail e senha.' })
+      setMessage({
+        kind: 'info',
+        text: hasPassword
+          ? 'Senha trocada.'
+          : 'Senha criada. Agora você também pode entrar com e-mail e senha.',
+      })
       setPassword('')
       setConfirm('')
+      onSaved()
     }
     setSaving(false)
   }
 
   return (
     <form className="info-card form-card" onSubmit={handleSubmit}>
-      <h2>Senha</h2>
-      <p className="muted">
-        Defina ou troque a senha para entrar com e-mail, mesmo que tenha criado a conta pelo Google.
-      </p>
+      {hasPassword ? (
+        <>
+          <h2>Trocar senha</h2>
+          <p className="muted">A senha que você usa para entrar com e-mail.</p>
+        </>
+      ) : (
+        <>
+          <h2>Criar senha</h2>
+          <p className="muted">
+            Crie uma senha para entrar também com e-mail e senha. Isso não muda nada na sua conta
+            Google: o login com Google continua funcionando, e a senha do Google continua só com o
+            Google.
+          </p>
+        </>
+      )}
       <label className="field">
         <span>Nova senha</span>
         <input
@@ -174,7 +214,7 @@ function PasswordForm({ onSave }: { onSave: (password: string) => Promise<{ erro
       </label>
       {message && <p className={`banner banner-${message.kind}`}>{message.text}</p>}
       <button type="submit" className="btn btn-primary" disabled={saving}>
-        {saving ? 'Salvando…' : 'Salvar senha'}
+        {saving ? 'Salvando…' : hasPassword ? 'Trocar senha' : 'Criar senha'}
       </button>
     </form>
   )
