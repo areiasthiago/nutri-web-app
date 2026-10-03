@@ -53,8 +53,8 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
-          <InstallBanner onInstall={() => setShowInstall(true)} />
           <Footer />
+          <InstallBanner onInstall={() => setShowInstall(true)} />
         </div>
       </HashRouter>
     </AuthProvider>
