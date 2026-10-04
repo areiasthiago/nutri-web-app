@@ -2135,3 +2135,103 @@ body.with-bottom-nav .editor-actions {
 .inline-fields input {
   min-width: 0;
 }
+
+/* Primeiros passos */
+
+.onboarding-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.onboarding-dots {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.onboarding-dots li {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+}
+
+.onboarding-dots li.is-done {
+  background: var(--primary);
+  opacity: 0.5;
+}
+
+.onboarding-dots li.is-current {
+  width: 22px;
+  border-radius: 4px;
+  background: var(--primary);
+}
+
+.onboarding-step {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.onboarding-step h1 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.2;
+}
+
+.onboarding-step p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.onboarding-step p.muted {
+  font-size: 14px;
+}
+
+.onboarding-mascots {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.onboarding-mascots img {
+  width: 30%;
+  max-width: 120px;
+  height: auto;
+}
+
+.onboarding-hero {
+  align-self: center;
+  width: 120px;
+  height: auto;
+}
+
+.onboarding-step p.onboarding-ok {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--info-bg);
+  color: var(--info-text);
+  font-weight: 600;
+}
+
+.onboarding-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding-left: 20px;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.onboarding-back {
+  align-self: flex-start;
+  margin-top: 16px;
+}

@@ -9,10 +9,17 @@ const client = supabase as SupabaseClient
 
 export const DEFAULT_TIMEZONE = 'America/Sao_Paulo'
 
+export type OnboardingStep = 'boas-vindas' | 'nome' | 'plano' | 'notificacoes' | 'casa' | 'pronto'
+
 export type Profile = {
   display_name: string | null
   timezone: string
+  /** Primeiros passos: onde parou; e quando terminou (ou pulou). */
+  onboarding_step: OnboardingStep | null
+  onboarding_done_at: string | null
 }
+
+const COLUMNS = 'display_name, timezone, onboarding_step, onboarding_done_at'
 
 type ProfileContextValue = {
   profile: Profile
@@ -26,7 +33,12 @@ const ProfileContext = createContext<ProfileContextValue | null>(null)
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth()
   const userId = session?.user.id
-  const [profile, setProfile] = useState<Profile>({ display_name: null, timezone: DEFAULT_TIMEZONE })
+  const [profile, setProfile] = useState<Profile>({
+    display_name: null,
+    timezone: DEFAULT_TIMEZONE,
+    onboarding_step: null,
+    onboarding_done_at: null,
+  })
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
@@ -34,7 +46,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     let active = true
     client
       .from('profiles')
-      .select('display_name, timezone')
+      .select(COLUMNS)
       .eq('id', userId)
       .maybeSingle()
       .then(({ data }) => {
@@ -54,7 +66,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         .from('profiles')
         .update(changes)
         .eq('id', userId)
-        .select('display_name, timezone')
+        .select(COLUMNS)
         .single()
       if (error) return { error: 'Não foi possível salvar agora. Tente de novo em instantes.' }
       setProfile(data as Profile)

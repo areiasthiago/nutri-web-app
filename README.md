@@ -155,6 +155,11 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
   um adulto sem dieta por refeição, com sugestão a partir do almoço e jantar do plano) e extras da
   casa por semana. Regras em `src/lib/household.ts` (testes em `src/lib/household.test.ts`).
 
+- Primeiros passos (`/comecar`): apresentação em sequência para conta nova (boas-vindas, nome e
+  fuso, plano, notificações, pessoas da casa, resumo do dia a dia). Abre sozinha até terminar ou
+  pular; o passo fica salvo no perfil (`onboarding_step`, `onboarding_done_at`) e dá para rever pelo
+  menu ☰.
+
 ## O que ainda não existe (próximas fatias)
 
 Lista de compras da semana e apagar a conta pelo app — na ordem do briefing, seção 11.

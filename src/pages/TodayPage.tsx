@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { MouseEvent } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { scrollToSection } from '../components/BottomNav'
 import type { TodaySection } from '../components/BottomNav'
 import { NotificationPrompt } from '../components/NotificationPrompt'
@@ -206,6 +206,9 @@ export function TodayPage() {
     month: 'long',
   }).format(nowDate)
   const dateLabel = weekdayDate.charAt(0).toUpperCase() + weekdayDate.slice(1)
+
+  // Conta nova: primeiro a apresentação (até terminar ou pular).
+  if (loaded && !profile.onboarding_done_at) return <Navigate to="/comecar" replace />
 
   return (
     <div className="page">

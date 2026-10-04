@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   AGE_BANDS,
   ALL_HOME_MEALS,
@@ -44,6 +44,7 @@ const parseNum = (t: string) => {
 }
 
 export function HouseholdPage() {
+  const fromOnboarding = useSearchParams()[0].get('de') === 'comecar'
   const [members, setMembers] = useState<HouseholdMember[] | null>(null)
   const [foods, setFoods] = useState<HouseFood[] | null>(null)
   const [extras, setExtras] = useState<HouseholdExtra[] | null>(null)
@@ -75,9 +76,15 @@ export function HouseholdPage() {
 
   return (
     <div className="page household-page">
-      <Link to="/" className="back-link">
-        ← Voltar para Hoje
-      </Link>
+      {fromOnboarding ? (
+        <Link to="/comecar" className="back-link">
+          ← Voltar para os primeiros passos
+        </Link>
+      ) : (
+        <Link to="/" className="back-link">
+          ← Voltar para Hoje
+        </Link>
+      )}
       <h1 className="page-title">Minha casa</h1>
       <p className="page-lead muted">
         Quem mora com você e o que a casa come, para a lista de compras da semana. Ninguém aqui precisa de conta.

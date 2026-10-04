@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { HashRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { HashRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthProvider'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { AppHeader } from './components/AppHeader'
@@ -16,17 +16,20 @@ import { InstallPage } from './pages/InstallPage'
 import { LoginPage } from './pages/LoginPage'
 import { MyPlanPage } from './pages/MyPlanPage'
 import { NewPlanPage } from './pages/NewPlanPage'
+import { OnboardingPage } from './pages/OnboardingPage'
 import { StatsPage } from './pages/StatsPage'
 import { TodayPage } from './pages/TodayPage'
 
 /** Telas logadas: cabeçalho com marca, tema e menu da conta. */
 function SignedInLayout() {
+  // Nos primeiros passos, sem a barra de baixo (foco na apresentação).
+  const onboarding = useLocation().pathname === '/comecar'
   return (
     <ProtectedRoute>
       <ProfileProvider>
         <AppHeader />
         <Outlet />
-        <BottomNav />
+        {!onboarding && <BottomNav />}
       </ProfileProvider>
     </ProtectedRoute>
   )
@@ -85,6 +88,7 @@ function App() {
                 <Route path="/plano/novo" element={<NewPlanPage />} />
                 <Route path="/estatisticas" element={<StatsPage />} />
                 <Route path="/casa" element={<HouseholdPage />} />
+                <Route path="/comecar" element={<OnboardingPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

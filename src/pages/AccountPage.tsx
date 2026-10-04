@@ -8,16 +8,7 @@ import { ReminderPrefsForm } from '../components/ReminderPrefsForm'
 import { fetchAiAccess } from '../lib/ai'
 import type { AiAccess } from '../lib/ai'
 import { useProfile } from '../lib/profile'
-
-// Fusos do Brasil. Se o perfil tiver outro (ex.: alguém morando fora), ele
-// entra na lista também, para o select não "perder" o valor salvo.
-const BRAZIL_TIMEZONES: { value: string; label: string }[] = [
-  { value: 'America/Sao_Paulo', label: 'Horário de Brasília' },
-  { value: 'America/Manaus', label: 'Amazonas, RO, RR (−1h)' },
-  { value: 'America/Cuiaba', label: 'MT e MS (−1h)' },
-  { value: 'America/Rio_Branco', label: 'Acre (−2h)' },
-  { value: 'America/Noronha', label: 'Fernando de Noronha (+1h)' },
-]
+import { timezoneOptions } from '../lib/timezones'
 
 // Quem entra pelo Google e cria senha continua só com "google" na sessão;
 // por isso a senha vem à parte (hasPassword).
@@ -113,9 +104,7 @@ function ProfileForm({
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ kind: 'info' | 'error'; text: string } | null>(null)
 
-  const options = BRAZIL_TIMEZONES.some((t) => t.value === initial.timezone)
-    ? BRAZIL_TIMEZONES
-    : [...BRAZIL_TIMEZONES, { value: initial.timezone, label: initial.timezone }]
+  const options = timezoneOptions(initial.timezone)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
