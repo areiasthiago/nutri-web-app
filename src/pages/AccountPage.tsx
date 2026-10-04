@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { AiQuotaBar } from '../components/AiQuota'
 import { NotificationsCard } from '../components/NotificationsCard'
+import { ReminderPrefsForm } from '../components/ReminderPrefsForm'
 import { fetchAiAccess } from '../lib/ai'
 import type { AiAccess } from '../lib/ai'
 import { useProfile } from '../lib/profile'
@@ -58,6 +59,7 @@ export function AccountPage() {
       <h1 className="page-title">Minha conta</h1>
 
       <NotificationsCard />
+      <ReminderPrefsForm />
 
       <section className="info-card">
         <h2>Acesso</h2>

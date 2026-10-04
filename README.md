@@ -138,12 +138,17 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
 - Notificações: aviso na tela Hoje e cartão em "Minha conta" para ativar neste aparelho (permissão
   pedida no toque). Web Push com chaves VAPID geradas pela Edge Function `push` e guardadas
   no Vault; o agendamento do banco (`pg_cron` + `pg_net`) chama a função a cada minuto, que envia o
-  que venceu e apaga inscrições expiradas. Inscrições em `push_subscriptions`, testes em `push_tests`.
+  que venceu e apaga inscrições expiradas. Inscrições em `push_subscriptions`.
+- Lembretes de refeição e de água (preferências em "Minha conta", tabela `reminder_settings`): no
+  horário de cada refeição, repetindo uma vez 30 min depois se não for registrada; nos horários do
+  protocolo de água, pulando se a água já estiver em dia; uma notificação só quando caem juntos;
+  silêncio por padrão 31 min depois da última refeição até 06:30 (configurável); antecedência
+  configurável. Regras em `supabase/functions/_shared/reminders.ts` (testes em
+  `src/lib/reminders.test.ts`); envios do dia em `reminder_sends`, para não repetir.
 
 ## O que ainda não existe (próximas fatias)
 
-Lembretes de refeição e de água (em cima da prova de notificações), pessoas da casa, lista de
-compras e apagar a conta pelo app — na ordem do briefing, seção 11.
+Pessoas da casa, lista de compras e apagar a conta pelo app — na ordem do briefing, seção 11.
 
 ## IA (só VIP)
 

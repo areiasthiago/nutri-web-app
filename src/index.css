@@ -1901,3 +1901,54 @@ body.with-bottom-nav .editor-actions {
   margin: 8px 0 0;
   color: var(--error-text);
 }
+
+/* Preferências de lembrete (Minha conta) */
+
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.check-row input {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  margin: 1px 0 0;
+  accent-color: var(--primary);
+}
+
+.check-row span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.check-row small {
+  font-size: 13px;
+}
+
+.quiet-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.quiet-fieldset legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.quiet-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}

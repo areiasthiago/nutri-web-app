@@ -47,6 +47,8 @@ begin
   insert into public.water_logs (log_date, ml) values (current_date, 362);
   insert into public.custom_meals (name, kcal) values ('Pipoca', 130);
   insert into public.snack_logs (log_date, name, kcal) values (current_date, 'Chocolate', 140);
+  insert into public.push_subscriptions (endpoint, p256dh, auth) values ('https://push.example/a', 'k', 'x');
+  insert into public.reminder_settings (lead_minutes) values (5);
   select count(*) into n from public.plans; report := report || 'A vê planos: ' || n || '; ';
   select count(*) into n from public.ai_plan_extractions; report := report || 'A vê a própria leitura PDF: ' || n || '; ';
   update public.profiles set display_name = 'A' where id = a;
@@ -89,6 +91,22 @@ begin
     report := report || 'B registra fora de hora em nome de A: PERMITIU; ';
   exception when others then
     report := report || 'B registra fora de hora em nome de A: bloqueado (' || sqlstate || '); ';
+  end;
+  select count(*) into n from public.push_subscriptions; report := report || 'B vê aparelhos de A: ' || n || '; ';
+  delete from public.push_subscriptions; get diagnostics n = row_count; report := report || 'B apaga aparelho de A: ' || n || '; ';
+  select count(*) into n from public.reminder_settings; report := report || 'B vê lembretes de A: ' || n || '; ';
+  update public.reminder_settings set meals_enabled = false; get diagnostics n = row_count; report := report || 'B altera lembretes de A: ' || n || '; ';
+  begin
+    insert into public.reminder_sends (owner_id, local_date, kind, ref_id, attempt) values (a, current_date, 'meal', gen_random_uuid(), 1);
+    report := report || 'B grava envio de lembrete: PERMITIU; ';
+  exception when others then
+    report := report || 'B grava envio de lembrete: bloqueado (' || sqlstate || '); ';
+  end;
+  begin
+    perform public.push_get_vapid_keys();
+    report := report || 'B lê chaves de push: PERMITIU; ';
+  exception when others then
+    report := report || 'B lê chaves de push: bloqueado (' || sqlstate || '); ';
   end;
   select count(*) into n from public.custom_meals; report := report || 'B vê lista Já comi antes de A: ' || n || '; ';
   update public.custom_meals set kcal = 0;

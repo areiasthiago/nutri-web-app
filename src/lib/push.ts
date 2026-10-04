@@ -62,3 +62,41 @@ export async function enablePush(): Promise<'ok' | 'denied'> {
   if (saveError) throw saveError
   return 'ok'
 }
+
+/** Preferências de lembrete (tabela reminder_settings; sem linha = padrões). */
+export type ReminderPrefs = {
+  meals_enabled: boolean
+  water_enabled: boolean
+  /** Antecedência em minutos (0 = na hora). */
+  lead_minutes: number
+  /** "HH:MM", ou null = automático (31 min depois da última refeição). */
+  quiet_start: string | null
+  quiet_end: string
+}
+
+export const DEFAULT_PREFS: ReminderPrefs = {
+  meals_enabled: true,
+  water_enabled: true,
+  lead_minutes: 0,
+  quiet_start: null,
+  quiet_end: '06:30',
+}
+
+const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null)
+
+export async function fetchReminderPrefs(): Promise<ReminderPrefs> {
+  const { data, error } = await client
+    .from('reminder_settings')
+    .select('meals_enabled, water_enabled, lead_minutes, quiet_start, quiet_end')
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return DEFAULT_PREFS
+  return { ...data, quiet_start: hhmm(data.quiet_start), quiet_end: hhmm(data.quiet_end) ?? '06:30' } as ReminderPrefs
+}
+
+export async function saveReminderPrefs(prefs: ReminderPrefs): Promise<void> {
+  const { error } = await client
+    .from('reminder_settings')
+    .upsert({ ...prefs, updated_at: new Date().toISOString() }, { onConflict: 'owner_id' })
+  if (error) throw error
+}

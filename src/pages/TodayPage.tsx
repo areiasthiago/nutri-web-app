@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { MouseEvent } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { scrollToSection } from '../components/BottomNav'
 import type { TodaySection } from '../components/BottomNav'
 import { NotificationPrompt } from '../components/NotificationPrompt'
@@ -365,14 +365,23 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
     }
   }
 
-  // Veio de outra tela pela barra de navegação: rola até a seção pedida.
+  // Veio de outra tela pela barra de navegação, ou de uma notificação
+  // (?secao=agua): rola até a seção pedida.
   const location = useLocation()
-  const scrollTarget = (location.state as { scrollTo?: TodaySection } | null)?.scrollTo
+  const fromQuery = new URLSearchParams(location.search).get('secao')
+  const scrollTarget =
+    (location.state as { scrollTo?: TodaySection } | null)?.scrollTo ??
+    (fromQuery === 'refeicoes' || fromQuery === 'agua' || fromQuery === 'resumo' ? fromQuery : undefined)
+  const navigate = useNavigate()
   useEffect(() => {
     if (!logs || !scrollTarget) return
-    const id = window.setTimeout(() => scrollToSection(scrollTarget), 50)
+    const id = window.setTimeout(() => {
+      scrollToSection(scrollTarget)
+      // Rola uma vez só: tira o pedido do endereço (senão rolaria a cada registro).
+      navigate('/', { replace: true })
+    }, 50)
     return () => window.clearTimeout(id)
-  }, [logs, scrollTarget])
+  }, [logs, scrollTarget, navigate])
 
   const highlighted = highlightedMealIndex(plan.meals, now, doneIds)
   const dayTotals = sumItems(plan.meals.flatMap((m) => m.meal_items))
