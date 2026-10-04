@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
+import { TimeField } from './TimeField'
 import { emptyItem, emptyMeal, emptySlot, validateDraft } from '../lib/planDraft'
 import type { DraftItem, DraftMeal, DraftSlot, PlanDraft } from '../lib/planDraft'
 
@@ -122,7 +123,7 @@ export function PlanEditor({ initial, saving, onSave, onCancel }: Props) {
         <section key={meal.key} className="info-card form-card editor-meal">
           <div className="editor-meal-head">
             <Field label="Horário" className="field-time">
-              <input type="time" value={meal.time} onChange={(e) => updateMeal(meal.key, { time: e.target.value })} />
+              <TimeField value={meal.time} onChange={(time) => updateMeal(meal.key, { time })} ariaLabel="Horário da refeição" />
             </Field>
             <Field label="Refeição" className="field-grow">
               <input value={meal.name} onChange={(e) => updateMeal(meal.key, { name: e.target.value })} placeholder="Ex.: Almoço" />
@@ -217,7 +218,7 @@ export function PlanEditor({ initial, saving, onSave, onCancel }: Props) {
         {draft.hydration_slots.length > 0 && <span className="field-caption">Horários (opcional)</span>}
         {draft.hydration_slots.map((slot) => (
           <div key={slot.key} className="editor-slot">
-            <input type="time" aria-label="Horário" value={slot.time} onChange={(e) => updateSlot(slot.key, { time: e.target.value })} />
+            <TimeField value={slot.time} onChange={(time) => updateSlot(slot.key, { time })} ariaLabel="Horário da água" />
             <input inputMode="numeric" aria-label="Quantidade em mL" placeholder="mL" value={slot.ml} onChange={(e) => updateSlot(slot.key, { ml: e.target.value })} />
             <input aria-label="Descrição" placeholder="Ex.: Ao acordar" value={slot.label} onChange={(e) => updateSlot(slot.key, { label: e.target.value })} />
             <RemoveButton

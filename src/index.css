@@ -843,7 +843,7 @@ input {
 }
 
 .field-time {
-  flex: 0 0 110px;
+  flex: 0 0 116px;
 }
 
 .field-grow {
@@ -882,7 +882,7 @@ input {
 
 .editor-slot {
   display: grid;
-  grid-template-columns: 96px 72px 1fr 44px;
+  grid-template-columns: 116px 64px 1fr 44px;
   gap: 6px;
   align-items: center;
 }
@@ -1415,4 +1415,48 @@ input {
 
 .meal-kcal .delta {
   font-size: 12px;
+}
+
+/* Horário: digitar (texto) ou escolher no relógio (ícone abre o seletor nativo). */
+.time-field {
+  position: relative;
+  display: flex;
+}
+
+.time-field input[type='text'] {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 40px 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-field-clock {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.time-field-native {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
