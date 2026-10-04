@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import type { Meal } from './plan'
 import {
-  achievement,
   addDays,
   aggregateDays,
   dateRange,
+  dayAchievement,
   mealStreak,
+  monthAchievement,
   monthEnd,
   summarize,
+  weekAchievement,
   weekStart,
 } from './stats'
 import type { DayStat, LoggedMeal, StatsInput } from './stats'
@@ -89,12 +91,27 @@ describe('resumo do período, sequência e selo', () => {
     expect(mealStreak([day('2026-10-03', 2, 0)], '2026-10-04')).toBe(0)
   })
 
-  it('selo de parabéns só quando está mandando bem', () => {
-    const goodWeek = summarize([day('2026-10-01', 3, 2000), day('2026-10-02', 3, 2000), day('2026-10-03', 3, 1800)], '2026-10-03')
-    expect(achievement(3, goodWeek)?.title).toBe('Mandando bem!')
-    expect(achievement(7, goodWeek)?.title).toBe('Uma semana impecável!')
-    expect(achievement(0, goodWeek)?.title).toBe('Semana nota 10!')
-    const weakWeek = summarize([day('2026-10-01', 1, 500), day('2026-10-02', 2, 800), day('2026-10-03', 0, 0)], '2026-10-03')
-    expect(achievement(1, weakWeek)).toBeNull()
+  it('selo do dia: refeições e água', () => {
+    expect(dayAchievement(day('2026-10-01', 3, 2000), 'hoje')?.title).toBe('Dia perfeito!')
+    expect(dayAchievement(day('2026-10-01', 3, 1000), 'hoje')?.title).toBe('Dia completo!')
+    expect(dayAchievement(day('2026-10-01', 1, 2500), 'hoje')?.title).toBe('Hidratação em dia!')
+    expect(dayAchievement(day('2026-10-01', 2, 1000), 'hoje')).toBeNull()
+  })
+
+  it('selo da semana e do mês, só quando está mandando bem', () => {
+    const week = (meals: number[], water: number[]) =>
+      summarize(meals.map((m, i) => day(addDays('2026-09-28', i), m, water[i])), '2026-10-04')
+    expect(weekAchievement(week([3, 3, 3, 3, 3, 3, 3], [0, 0, 0, 0, 0, 0, 0]), 'x')?.title).toBe('Semana impecável!')
+    expect(weekAchievement(week([3, 3, 3, 3, 3, 3, 2], [2000, 2000, 2000, 2000, 2000, 2000, 2000]), 'x')?.title).toBe('Semana nota 10!')
+    expect(weekAchievement(week([3, 3, 3, 1, 1, 1, 1], [0, 0, 0, 0, 0, 0, 0]), 'x')?.title).toBe('Mandando bem!')
+    expect(weekAchievement(week([1, 1, 1, 1, 1, 1, 1], [500, 500, 500, 500, 500, 500, 500]), 'x')).toBeNull()
+    // Poucos dias ainda não dão selo.
+    expect(weekAchievement(summarize([day('2026-10-01', 3, 2000)], '2026-10-01'), 'x')).toBeNull()
+
+    const month = (n: number, meals: number, water: number) =>
+      summarize(dateRange('2026-09-01', addDays('2026-09-01', n - 1)).map((d) => day(d, meals, water)), '2026-10-04')
+    expect(monthAchievement(month(20, 3, 0), 'x')?.title).toBe('Mês de campeão!')
+    expect(monthAchievement(month(20, 1, 2000), 'x')?.title).toBe('Mês hidratado!')
+    expect(monthAchievement(month(2, 3, 2000), 'x')).toBeNull()
   })
 })

@@ -1,21 +1,31 @@
 import { useState } from 'react'
-import type { Achievement } from '../lib/stats'
+import alface from '../assets/mascots/alface.webp'
+import cenoura from '../assets/mascots/cenoura.webp'
+import tomate from '../assets/mascots/tomate.webp'
+import logoLockup from '../assets/brand/logo-lockup.svg'
+import logoMark from '../assets/logo-mark.svg'
+import type { Achievement, Mascot } from '../lib/stats'
+import { Wordmark } from './Wordmark'
 
 // Selo de parabéns quando a pessoa está mandando bem, com compartilhamento nas
 // redes. Compartilha só a conquista (nada do plano, comidas ou números de dieta).
 
 const APP_URL = 'https://areiasthiago.github.io/nutri-web-app/'
 
-function MedalIcon() {
-  return (
-    <svg viewBox="0 0 48 48" width="44" height="44" aria-hidden="true">
-      <path d="M15 4h8l4 12h-8z" fill="#2f8fd1" />
-      <path d="M33 4h-8l-4 12h8z" fill="#f85048" />
-      <circle cx="24" cy="29" r="14" fill="#f09820" />
-      <circle cx="24" cy="29" r="10" fill="none" stroke="#fff" strokeOpacity="0.7" strokeWidth="2" />
-      <path d="M24 22.5l2 4.2 4.6.6-3.3 3.2.8 4.6-4.1-2.2-4.1 2.2.8-4.6-3.3-3.2 4.6-.6z" fill="#fff" />
-    </svg>
-  )
+/** Um mascote por período: tomate no dia, alface na semana, cenoura (comemorando) no mês. */
+const MASCOTS: Record<Mascot, { src: string; alt: string }> = {
+  tomate: { src: tomate, alt: 'Tomate sorridente' },
+  alface: { src: alface, alt: 'Alface sorridente de gravatinha' },
+  cenoura: { src: cenoura, alt: 'Cenoura comemorando com os braços para cima' },
+}
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = reject
+    img.src = src
+  })
 }
 
 /** Quebra o texto em linhas que cabem na largura (para o canvas). */
@@ -49,43 +59,34 @@ async function badgeImage(a: Achievement): Promise<File | null> {
   ctx.fillStyle = bg
   ctx.fillRect(0, 0, size, size)
 
-  // Medalha
   const cx = size / 2
-  ctx.fillStyle = '#2f8fd1'
-  ctx.beginPath()
-  ctx.moveTo(cx - 150, 150); ctx.lineTo(cx - 50, 150); ctx.lineTo(cx + 10, 330); ctx.lineTo(cx - 90, 330)
-  ctx.fill()
-  ctx.fillStyle = '#f85048'
-  ctx.beginPath()
-  ctx.moveTo(cx + 150, 150); ctx.lineTo(cx + 50, 150); ctx.lineTo(cx - 10, 330); ctx.lineTo(cx + 90, 330)
-  ctx.fill()
-  ctx.fillStyle = '#f09820'
-  ctx.beginPath()
-  ctx.arc(cx, 420, 150, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.strokeStyle = 'rgba(255,255,255,0.7)'
-  ctx.lineWidth = 12
-  ctx.beginPath()
-  ctx.arc(cx, 420, 110, 0, Math.PI * 2)
-  ctx.stroke()
+
+  // Logo em destaque, numa faixa branca no topo
+  const logo = await loadImage(logoLockup)
+  const lh = 120
+  const lw = (1358 / 435) * lh
   ctx.fillStyle = '#ffffff'
   ctx.beginPath()
-  for (let i = 0; i < 10; i++) {
-    const r = i % 2 === 0 ? 70 : 30
-    const ang = -Math.PI / 2 + (i * Math.PI) / 5
-    ctx.lineTo(cx + r * Math.cos(ang), 420 + r * Math.sin(ang))
-  }
+  ctx.roundRect(cx - lw / 2 - 48, 48, lw + 96, lh + 48, (lh + 48) / 2)
   ctx.fill()
+  ctx.drawImage(logo, cx - lw / 2, 72, lw, lh)
+
+  // Mascote sobre um halo claro
+  ctx.fillStyle = 'rgba(255,255,255,0.9)'
+  ctx.beginPath()
+  ctx.arc(cx, 470, 210, 0, Math.PI * 2)
+  ctx.fill()
+  const mascot = await loadImage(MASCOTS[a.mascot].src)
+  const mh = 390
+  const mw = (mascot.width / mascot.height) * mh
+  ctx.drawImage(mascot, cx - mw / 2, 275, mw, mh)
 
   ctx.textAlign = 'center'
   ctx.fillStyle = '#ffffff'
-  ctx.font = font(800, 84)
-  ctx.fillText(a.title, cx, 690)
-  ctx.font = font(500, 46)
-  wrap(ctx, a.detail, 860).forEach((line, i) => ctx.fillText(line, cx, 780 + i * 60))
-  ctx.font = font(700, 40)
-  ctx.fillStyle = 'rgba(255,255,255,0.85)'
-  ctx.fillText('Nutriê', cx, 1000)
+  ctx.font = font(800, 80)
+  ctx.fillText(a.title, cx, 790)
+  ctx.font = font(500, 44)
+  wrap(ctx, a.detail, 880).forEach((line, i) => ctx.fillText(line, cx, 870 + i * 58))
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
   return blob ? new File([blob], 'nutrie-conquista.png', { type: 'image/png' }) : null
@@ -126,7 +127,13 @@ export function CongratsBadge({ achievement }: { achievement: Achievement }) {
 
   return (
     <section className="congrats-badge" aria-label="Conquista">
-      <MedalIcon />
+      <div className="congrats-brand-row">
+        <div className="congrats-brand">
+          <img src={logoMark} alt="" width={30} height={28} />
+          <Wordmark height={22} />
+        </div>
+      </div>
+      <img className="congrats-mascot" src={MASCOTS[achievement.mascot].src} alt={MASCOTS[achievement.mascot].alt} />
       <div className="congrats-text">
         <h2>{achievement.title}</h2>
         <p>{achievement.detail}</p>

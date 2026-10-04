@@ -6,16 +6,18 @@ import { fetchActivePlan, formatNumber, localDateIn } from '../lib/plan'
 import type { Plan } from '../lib/plan'
 import { useProfile } from '../lib/profile'
 import {
-  achievement,
   addDays,
   aggregateDays,
   dateRange,
+  dayAchievement,
   fetchStatsInput,
   mealStreak,
+  monthAchievement,
   monthEnd,
   monthStart,
   pct,
   summarize,
+  weekAchievement,
   weekStart,
 } from '../lib/stats'
 import type { DayStat, StatsInput } from '../lib/stats'
@@ -60,6 +62,14 @@ function periodTitle(g: Granularity, from: string, to: string, today: string): s
     return `${fmt(from, { day: '2-digit', month: '2-digit' })} a ${fmt(to, { day: '2-digit', month: '2-digit' })}`
   }
   return capitalize(fmt(from, { month: 'long', year: 'numeric' }))
+}
+
+/** Período no meio de uma frase, para o selo: "hoje", "nesta semana", "em setembro de 2026"… */
+function periodPhrase(g: Granularity, from: string, to: string, today: string): string {
+  const ddmm = (d: string) => fmt(d, { day: '2-digit', month: '2-digit' })
+  if (g === 'dia') return from === today ? 'hoje' : from === addDays(today, -1) ? 'ontem' : `em ${ddmm(from)}`
+  if (g === 'semana') return from === weekStart(today) ? 'nesta semana' : `na semana de ${ddmm(from)} a ${ddmm(to)}`
+  return from === monthStart(today) ? 'neste mês' : `em ${fmt(from, { month: 'long', year: 'numeric' })}`
 }
 
 function Tile({ label, value, sub, meter, color }: { label: string; value: string; sub?: string; meter?: number; color?: string }) {
@@ -131,8 +141,14 @@ export function StatsPage() {
   const counts = (d: DayStat) => d.date <= today && (!since || d.date >= since)
   const summary = summarize(days, today, since)
   const streak = ready ? mealStreak(allDays, today) : 0
-  const lastWeek = summarize(dateRange(addDays(today, -6), today).flatMap((d) => byDate.get(d) ?? []), today, since)
-  const badge = ready ? achievement(streak, lastWeek) : null
+  const when = periodPhrase(granularity, from, to, today)
+  const badge = !ready
+    ? null
+    : granularity === 'dia'
+      ? counts(days[0]) ? dayAchievement(days[0], when) : null
+      : granularity === 'semana'
+        ? weekAchievement(summary, when)
+        : monthAchievement(summary, when)
   const waterTarget = plan?.target_water_ml ?? null
   const kcalPlan = days[0]?.kcalPlan ?? null
 

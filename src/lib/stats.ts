@@ -156,17 +156,56 @@ export function mealStreak(days: DayStat[], today: string): number {
   return streak
 }
 
-export type Achievement = { title: string; detail: string }
+export type Mascot = 'tomate' | 'alface' | 'cenoura'
+export type Achievement = { title: string; detail: string; mascot: Mascot }
 
-/** Selo de parabéns, quando estiver mandando bem (o mais forte que se aplicar). */
-export function achievement(streak: number, week: PeriodSummary): Achievement | null {
-  if (streak >= 7) return { title: 'Uma semana impecável!', detail: `${streak} dias seguidos com todas as refeições do plano.` }
-  if (streak >= 3) return { title: 'Mandando bem!', detail: `${streak} dias seguidos com todas as refeições do plano.` }
-  if (week.days >= 3 && week.mealsPct >= 85 && week.waterPct >= 85) {
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+
+/** Selo do dia (tomate): só quando o dia foi bom. */
+export function dayAchievement(day: DayStat, when: string): Achievement | null {
+  const allMeals = day.mealsPlanned > 0 && day.mealsDone >= day.mealsPlanned
+  const water = !!day.waterTarget && day.waterMl >= day.waterTarget
+  if (allMeals && water) {
+    return { title: 'Dia perfeito!', detail: `Todas as ${day.mealsPlanned} refeições do plano e a meta de água ${when}.`, mascot: 'tomate' }
+  }
+  if (allMeals) return { title: 'Dia completo!', detail: `Todas as ${day.mealsPlanned} refeições do plano ${when}.`, mascot: 'tomate' }
+  if (water) return { title: 'Hidratação em dia!', detail: `Meta de água batida ${when}.`, mascot: 'tomate' }
+  return null
+}
+
+/** Selo da semana (alface), a partir de 3 dias contados. */
+export function weekAchievement(s: PeriodSummary, when: string): Achievement | null {
+  if (s.days < 3) return null
+  if (s.days === 7 && s.completeDays === 7) {
+    return { title: 'Semana impecável!', detail: `Todas as refeições do plano nos 7 dias ${when}.`, mascot: 'alface' }
+  }
+  if (s.mealsPct >= 85 && s.waterPct >= 85) {
     return {
       title: 'Semana nota 10!',
-      detail: `${Math.round(week.mealsPct)}% das refeições e ${Math.round(week.waterPct)}% da água na semana.`,
+      detail: `${Math.round(s.mealsPct)}% das refeições e ${Math.round(s.waterPct)}% da água ${when}.`,
+      mascot: 'alface',
     }
+  }
+  if (s.completeDays >= 3) {
+    return { title: 'Mandando bem!', detail: `${plural(s.completeDays, 'dia', 'dias')} com todas as refeições ${when}.`, mascot: 'alface' }
+  }
+  if (s.waterGoalDays >= 4) {
+    return { title: 'Semana hidratada!', detail: `Meta de água batida em ${s.waterGoalDays} dias ${when}.`, mascot: 'alface' }
+  }
+  return null
+}
+
+/** Selo do mês (cenoura), a partir de 3 dias contados (já aparece no começo do mês). */
+export function monthAchievement(s: PeriodSummary, when: string): Achievement | null {
+  if (s.days < 3) return null
+  if (s.mealsPct >= 90) {
+    return { title: 'Mês de campeão!', detail: `${Math.round(s.mealsPct)}% das refeições do plano ${when}.`, mascot: 'cenoura' }
+  }
+  if (s.completeDays >= 10) {
+    return { title: 'Mês consistente!', detail: `${s.completeDays} dias com todas as refeições ${when}.`, mascot: 'cenoura' }
+  }
+  if (s.waterPct >= 85) {
+    return { title: 'Mês hidratado!', detail: `${Math.round(s.waterPct)}% da meta de água ${when}.`, mascot: 'cenoura' }
   }
   return null
 }
