@@ -16,6 +16,7 @@ declare
   a uuid := gen_random_uuid();
   b uuid := gen_random_uuid();
   plan_a uuid;
+  meal_a uuid;
   n int;
   report text := '';
 begin
@@ -40,6 +41,9 @@ begin
   )
   insert into public.substitutions (item_id, text) select id, 'Batata' from i;
   insert into public.hydration_slots (plan_id, time, ml) values (plan_a, '08:00', 300);
+  select id into meal_a from public.meals where plan_id = plan_a limit 1;
+  insert into public.meal_logs (meal_id, log_date, meal_name, meal_time)
+    values (meal_a, current_date, 'Almoço', '12:00');
   select count(*) into n from public.plans; report := report || 'A vê planos: ' || n || '; ';
   select count(*) into n from public.ai_plan_extractions; report := report || 'A vê a própria leitura PDF: ' || n || '; ';
   update public.profiles set display_name = 'A' where id = a;
@@ -55,6 +59,16 @@ begin
   select count(*) into n from public.substitutions; report := report || 'B vê trocas: ' || n || '; ';
   select count(*) into n from public.hydration_slots; report := report || 'B vê água: ' || n || '; ';
   select count(*) into n from public.profiles where id = a; report := report || 'B vê perfil de A: ' || n || '; ';
+  select count(*) into n from public.meal_logs; report := report || 'B vê refeições feitas de A: ' || n || '; ';
+  delete from public.meal_logs;
+  get diagnostics n = row_count; report := report || 'B apaga refeições feitas de A: ' || n || '; ';
+  begin
+    insert into public.meal_logs (meal_id, log_date, meal_name, meal_time)
+      values (meal_a, current_date + 1, 'x', '12:00');
+    report := report || 'B marca refeição de A: PERMITIU; ';
+  exception when others then
+    report := report || 'B marca refeição de A: bloqueado (' || sqlstate || '); ';
+  end;
   select count(*) into n from public.ai_access; report := report || 'B vê acesso IA de A: ' || n || '; ';
   select count(*) into n from public.ai_usage; report := report || 'B vê uso IA de A: ' || n || '; ';
   select count(*) into n from public.ai_plan_extractions; report := report || 'B vê leitura PDF de A: ' || n || '; ';

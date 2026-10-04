@@ -96,16 +96,31 @@ export function nowMinutesIn(timeZone: string, now = new Date()): number {
   return get('hour') * 60 + get('minute')
 }
 
+/**
+ * Data de hoje ("AAAA-MM-DD") no fuso do usuário, não no UTC nem no do
+ * aparelho: 23h em São Paulo ainda é o mesmo dia, mesmo já sendo amanhã em UTC.
+ */
+export function localDateIn(timeZone: string, now = new Date()): string {
+  // en-CA formata como AAAA-MM-DD.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now)
+}
+
 /** Uma refeição continua "agora" por este tempo depois do horário dela. */
 export const CURRENT_MEAL_WINDOW_MIN = 60
 
 /**
- * Refeição em destaque: a primeira cujo horário ainda não passou há mais de
- * CURRENT_MEAL_WINDOW_MIN. Depois da última refeição do dia, nenhuma.
- * (Quando der para marcar refeição como feita, as feitas serão puladas.)
+ * Refeição em destaque: a primeira ainda não feita cujo horário não passou há
+ * mais de CURRENT_MEAL_WINDOW_MIN. Sem nenhuma assim, -1.
  */
-export function highlightedMealIndex(meals: Meal[], nowMinutes: number): number {
-  return meals.findIndex((m) => timeToMinutes(m.time) + CURRENT_MEAL_WINDOW_MIN > nowMinutes)
+export function highlightedMealIndex(meals: Meal[], nowMinutes: number, doneMealIds: Set<string> = new Set()): number {
+  return meals.findIndex(
+    (m) => !doneMealIds.has(m.id) && timeToMinutes(m.time) + CURRENT_MEAL_WINDOW_MIN > nowMinutes,
+  )
 }
 
 export type Totals = { kcal: number; protein_g: number; carbs_g: number; fat_g: number }

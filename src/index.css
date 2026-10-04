@@ -956,3 +956,82 @@ input {
 .quota-full span {
   background: var(--tomato);
 }
+
+/* Marcar refeição como feita */
+
+.day-progress {
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.meal-check {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  margin: -4px 0 -4px -4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--primary);
+  border-radius: 50%;
+  background: var(--bg);
+  color: #fff;
+  cursor: pointer;
+}
+
+.meal-check.is-done {
+  background: var(--primary);
+}
+
+.meal-check:disabled {
+  opacity: 0.5;
+}
+
+.meal-card-done {
+  background: var(--surface);
+}
+
+.meal-card-done .meal-time,
+.meal-card-done .meal-name {
+  color: var(--text-muted);
+}
+
+.meal-badge-done {
+  background: none;
+  color: var(--primary);
+  padding: 0;
+}
+
+.meal-badge-late {
+  background: var(--attention-bg);
+  color: var(--attention-text);
+}
+
+.meal-item-swapped {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.meal-item-swap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.meal-item-swap select {
+  flex: 1;
+  min-width: 0;
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}

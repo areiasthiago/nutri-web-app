@@ -1,11 +1,16 @@
 import { useEffect, useState } from 'react'
+import type { MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { fetchMealLogs, markMealDone, unmarkMeal, updateSwaps } from '../lib/mealLogs'
+import type { MealLog, Swap } from '../lib/mealLogs'
 import {
+  CURRENT_MEAL_WINDOW_MIN,
   fetchActivePlan,
   formatIn,
   formatNumber,
   formatTime,
   highlightedMealIndex,
+  localDateIn,
   nowMinutesIn,
   sumItems,
   timeToMinutes,
@@ -36,32 +41,95 @@ function MacroLine({ totals }: { totals: { [K in keyof Totals]: number | null } 
   return <>{parts.join(' · ')}</>
 }
 
-function MealCard({ meal, badge }: { meal: Meal; badge: string | null }) {
-  const totals = sumItems(meal.meal_items)
+function CheckIcon() {
   return (
-    <details className={`meal-card${badge ? ' meal-card-next' : ''}`} open={badge !== null}>
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </svg>
+  )
+}
+
+const doneTime = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+type MealCardProps = {
+  meal: Meal
+  badge: string | null
+  late: boolean
+  log: MealLog | undefined
+  /** Trocas escolhidas antes de marcar (ainda não salvas). */
+  draftSwaps: Swap[]
+  busy: boolean
+  onToggle: () => void
+  onSwapChange: (swaps: Swap[]) => void
+}
+
+function MealCard({ meal, badge, late, log, draftSwaps, busy, onToggle, onSwapChange }: MealCardProps) {
+  const totals = sumItems(meal.meal_items)
+  const done = !!log
+  const swaps = log?.swaps ?? draftSwaps
+  const swapFor = (itemId: string) => swaps.find((sw) => sw.item_id === itemId)?.substitution ?? ''
+
+  function chooseSwap(itemId: string, food: string, substitution: string) {
+    const others = swaps.filter((sw) => sw.item_id !== itemId)
+    onSwapChange(substitution ? [...others, { item_id: itemId, food, substitution }] : others)
+  }
+
+  function handleCheck(e: MouseEvent) {
+    // O botão fica dentro do <summary>: sem isto, o toque também abriria/fecharia o cartão.
+    e.preventDefault()
+    e.stopPropagation()
+    onToggle()
+  }
+
+  const classes = ['meal-card', badge && 'meal-card-next', done && 'meal-card-done'].filter(Boolean).join(' ')
+
+  return (
+    <details className={classes} open={badge !== null}>
       <summary>
+        <button
+          type="button"
+          className={`meal-check${done ? ' is-done' : ''}`}
+          onClick={handleCheck}
+          disabled={busy}
+          aria-pressed={done}
+          aria-label={done ? `Desmarcar ${meal.name}` : `Marcar ${meal.name} como feita`}
+        >
+          {done && <CheckIcon />}
+        </button>
         <span className="meal-time">{formatTime(meal.time)}</span>
         <span className="meal-name">
           {meal.name}
-          {badge && <span className="meal-badge">{badge}</span>}
+          {done && <span className="meal-badge meal-badge-done">Feita às {doneTime(log.done_at)}</span>}
+          {!done && badge && <span className="meal-badge">{badge}</span>}
+          {!done && !badge && late && <span className="meal-badge meal-badge-late">Não marcada</span>}
         </span>
         <span className="meal-kcal">{formatNumber(totals.kcal)} kcal</span>
       </summary>
       <ul className="meal-items">
-        {meal.meal_items.map((item) => (
-          <li key={item.id}>
-            <div className="meal-item-main">
-              <span>{item.food}</span>
-              <span className="meal-item-qty">{item.qty_text}</span>
-            </div>
-            {item.substitutions.length > 0 && (
-              <p className="meal-item-subs">
-                Trocas: {item.substitutions.map((s) => s.text).join(' · ')}
-              </p>
-            )}
-          </li>
-        ))}
+        {meal.meal_items.map((item) => {
+          const chosen = swapFor(item.id)
+          return (
+            <li key={item.id}>
+              <div className="meal-item-main">
+                <span className={chosen ? 'meal-item-swapped' : undefined}>{item.food}</span>
+                <span className="meal-item-qty">{item.qty_text}</span>
+              </div>
+              {item.substitutions.length > 0 && (
+                <label className="meal-item-swap">
+                  <span>{chosen ? 'Usei a troca:' : 'Trocas:'}</span>
+                  <select value={chosen} onChange={(e) => chooseSwap(item.id, item.food, e.target.value)}>
+                    <option value="">Como no plano</option>
+                    {item.substitutions.map((sub) => (
+                      <option key={sub.id} value={sub.text}>
+                        {sub.text}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </li>
+          )
+        })}
       </ul>
     </details>
   )
@@ -119,13 +187,79 @@ export function TodayPage() {
         </div>
       )}
 
-      {state.status === 'ready' && state.plan && loaded && <PlanView plan={state.plan} now={now} />}
+      {state.status === 'ready' && state.plan && loaded && (
+        <PlanView plan={state.plan} now={now} date={localDateIn(profile.timezone, nowDate)} />
+      )}
     </div>
   )
 }
 
-function PlanView({ plan, now }: { plan: Plan; now: number }) {
-  const highlighted = highlightedMealIndex(plan.meals, now)
+function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }) {
+  // Registros do dia; recarrega quando vira o dia (date muda à meia-noite local).
+  const [logs, setLogs] = useState<{ date: string; byMeal: Map<string, MealLog> } | null>(null)
+  const [draftSwaps, setDraftSwaps] = useState<Record<string, Swap[]>>({})
+  const [busyMeal, setBusyMeal] = useState<string | null>(null)
+  const [logError, setLogError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    fetchMealLogs(date)
+      .then((rows) => active && setLogs({ date, byMeal: new Map(rows.map((r) => [r.meal_id, r])) }))
+      .catch(() => active && setLogError('Não foi possível carregar as refeições marcadas hoje.'))
+    return () => {
+      active = false
+    }
+  }, [date])
+
+  const byMeal = logs?.date === date ? logs.byMeal : new Map<string, MealLog>()
+  const doneIds = new Set(byMeal.keys())
+  const doneCount = plan.meals.filter((m) => doneIds.has(m.id)).length
+
+  function setLog(mealId: string, log: MealLog | null) {
+    setLogs((prev) => {
+      const next = new Map(prev?.date === date ? prev.byMeal : [])
+      if (log) next.set(mealId, log)
+      else next.delete(mealId)
+      return { date, byMeal: next }
+    })
+  }
+
+  async function toggleMeal(meal: Meal) {
+    setLogError(null)
+    setBusyMeal(meal.id)
+    const existing = byMeal.get(meal.id)
+    try {
+      if (existing) {
+        await unmarkMeal(meal.id, date)
+        setLog(meal.id, null)
+        // As trocas escolhidas continuam na tela, caso marque de novo.
+        setDraftSwaps((d) => ({ ...d, [meal.id]: existing.swaps }))
+      } else {
+        const log = await markMealDone(meal, date, draftSwaps[meal.id] ?? [])
+        setLog(meal.id, log)
+      }
+    } catch {
+      setLogError('Não foi possível salvar agora. Confira a internet e tente de novo.')
+    }
+    setBusyMeal(null)
+  }
+
+  async function changeSwaps(meal: Meal, swaps: Swap[]) {
+    const log = byMeal.get(meal.id)
+    if (!log) {
+      setDraftSwaps((d) => ({ ...d, [meal.id]: swaps }))
+      return
+    }
+    setLog(meal.id, { ...log, swaps })
+    try {
+      await updateSwaps(log.id, swaps)
+    } catch {
+      setLog(meal.id, log)
+      setLogError('Não foi possível salvar a troca agora. Tente de novo.')
+    }
+  }
+
+  const highlighted = highlightedMealIndex(plan.meals, now, doneIds)
   const dayTotals = sumItems(plan.meals.flatMap((m) => m.meal_items))
   const protocolMl = plan.hydration_slots.reduce((sum, s) => sum + s.ml, 0)
   const nextSlot = plan.hydration_slots.find((s) => timeToMinutes(s.time) >= now)
@@ -140,13 +274,47 @@ function PlanView({ plan, now }: { plan: Plan; now: number }) {
     <>
       {plan.status_note && <p className="banner banner-attention">{plan.status_note}</p>}
 
-      {highlighted === -1 && (
-        <p className="banner banner-info">As refeições de hoje já passaram. Até amanhã!</p>
+      <div className="day-progress">
+        <div className="quota-head">
+          <span>Refeições de hoje</span>
+          <strong>
+            {doneCount} de {plan.meals.length} feitas
+          </strong>
+        </div>
+        <div
+          className="quota-bar"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={plan.meals.length}
+          aria-valuenow={doneCount}
+          aria-label="Refeições feitas hoje"
+        >
+          <span style={{ width: `${plan.meals.length ? (doneCount / plan.meals.length) * 100 : 0}%` }} />
+        </div>
+      </div>
+
+      {logError && <p className="banner banner-error">{logError}</p>}
+
+      {logs && doneCount === plan.meals.length && plan.meals.length > 0 && (
+        <p className="banner banner-info">Todas as refeições de hoje feitas. Muito bem!</p>
+      )}
+      {logs && highlighted === -1 && doneCount < plan.meals.length && (
+        <p className="banner banner-info">Ficou refeição sem marcar hoje. Se você comeu, toque no círculo dela.</p>
       )}
 
       <section className="meal-list" aria-label="Refeições de hoje">
         {plan.meals.map((meal, index) => (
-          <MealCard key={meal.id} meal={meal} badge={badgeFor(index)} />
+          <MealCard
+            key={meal.id}
+            meal={meal}
+            badge={badgeFor(index)}
+            late={timeToMinutes(meal.time) + CURRENT_MEAL_WINDOW_MIN <= now}
+            log={byMeal.get(meal.id)}
+            draftSwaps={draftSwaps[meal.id] ?? []}
+            busy={busyMeal === meal.id || !logs}
+            onToggle={() => toggleMeal(meal)}
+            onSwapChange={(swaps) => changeSwaps(meal, swaps)}
+          />
         ))}
       </section>
 

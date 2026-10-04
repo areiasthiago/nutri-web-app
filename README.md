@@ -109,14 +109,16 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
   2. se a leitura ficar fraca, quem é VIP pode ler com IA (Claude, via Edge Function
      `ai-extract-plan`, com teto mensal por usuário e registro de custo);
   3. sempre dá para montar à mão. Tudo cai na mesma tela de revisão antes de salvar.
+- Marcar refeição como feita com um toque na tela Hoje (e desmarcar), indicando a troca usada
+  em cada alimento; contador "X de N feitas"; o destaque pula as refeições já feitas. O dia
+  é o do fuso do usuário (testes em `src/lib/plan.test.ts`).
 - Cabeçalho com menu da conta: "Minha conta" (nome para a saudação, fuso horário, definir ou
   trocar senha) e "Sair".
 - Deploy automático para o GitHub Pages a cada push na `main`.
 
 ## O que ainda não existe (próximas fatias)
 
-Marcar refeição como feita (e escolher a troca usada), registro de água, lembretes por
-notificação, histórico, edição manual do plano, envio de PDF, pessoas da casa, lista de
+Registro de água, lembretes por notificação, histórico, edição manual do plano, envio de PDF, pessoas da casa, lista de
 compras e apagar a conta pelo app — na ordem do briefing, seção 11.
 
 ## IA (só VIP)
