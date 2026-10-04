@@ -306,7 +306,7 @@ export function OffPlanSheet({
           <>
             <textarea
               className="offplan-input"
-              rows={2}
+              rows={3}
               maxLength={300}
               value={text}
               onChange={(e) => setText(e.target.value)}

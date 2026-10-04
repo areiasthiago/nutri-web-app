@@ -1267,12 +1267,20 @@ input {
   text-align: left;
 }
 
+/* Com muitas trocas a janela passa da altura: ela rola, e nada encolhe
+   (sem isto o campo de texto era espremido até quase sumir). */
+.offplan-sheet > *,
+.swap-section > * {
+  flex-shrink: 0;
+}
+
 .offplan-sheet h2 {
   text-align: center;
 }
 
 .offplan-input {
   width: 100%;
+  min-height: 84px;
   padding: 10px 14px;
   border: 1px solid var(--border);
   border-radius: 10px;
