@@ -17,6 +17,7 @@ import {
 } from '../lib/ai'
 import type { AiAccess, SavedExtraction } from '../lib/ai'
 import { fetchActivePlan, formatNumber, formatTime, sumItems } from '../lib/plan'
+import { usePlanOwner } from '../lib/planOwner'
 import type { Plan } from '../lib/plan'
 import { draftFromExtracted, draftFromPlan, planToExtracted, saveDraftAsActivePlan } from '../lib/planDraft'
 import type { ExtractedPlan, PlanDraft } from '../lib/planDraft'
@@ -34,6 +35,7 @@ const isEditResult = (e: SavedExtraction) => Array.isArray(e.plan.changes)
 /** Meu plano: ver o plano atual, editar com IA ou à mão, ou trocar de plano. */
 export function MyPlanPage() {
   const navigate = useNavigate()
+  const owner = usePlanOwner()
   const [plan, setPlan] = useState<Plan | null | undefined>(undefined)
   const [access, setAccess] = useState<AiAccess | null>(null)
   const [pending, setPending] = useState<SavedExtraction | null>(null)
@@ -44,15 +46,15 @@ export function MyPlanPage() {
 
   useEffect(() => {
     let active = true
-    fetchActivePlan()
+    fetchActivePlan(owner.memberId)
       .then((p) => active && setPlan(p))
-      .catch(() => active && setError('Não foi possível carregar seu plano agora.'))
+      .catch(() => active && setError('Não foi possível carregar o plano agora.'))
     fetchAiAccess().then((a) => active && setAccess(a))
     fetchLatestExtraction().then((e) => active && setPending(e))
     return () => {
       active = false
     }
-  }, [])
+  }, [owner.memberId])
 
   function reviewAiResult(result: { plan: ExtractedPlan; costUsd: number; id: string | null }) {
     setStep({
@@ -96,7 +98,7 @@ export function MyPlanPage() {
 
   async function handleSave(draft: PlanDraft, extractionId: string | null) {
     setSaving(true)
-    const { error: saveError } = await saveDraftAsActivePlan(draft)
+    const { error: saveError } = await saveDraftAsActivePlan(draft, owner.memberId)
     setSaving(false)
     if (saveError) {
       setError(saveError)
@@ -104,7 +106,7 @@ export function MyPlanPage() {
       return
     }
     if (extractionId) await deleteExtraction(extractionId)
-    navigate('/', { replace: true })
+    navigate(owner.homePath, { replace: true })
   }
 
   async function discardPending() {
@@ -123,7 +125,7 @@ export function MyPlanPage() {
         <p className="muted page-lead">
           {step.by === 'ai'
             ? 'Confira as mudanças da IA e corrija o que precisar antes de salvar.'
-            : 'Edite o que quiser. Ao salvar, esta vira a versão ativa do seu plano.'}
+            : 'Edite o que quiser. Ao salvar, esta vira a versão ativa do plano.'}
           {step.costUsd !== null &&
             access &&
             ` Esta edição usou ${quotaPercent(step.costUsd, access.monthLimitUsd)}% da sua cota de IA do mês.`}
@@ -153,10 +155,10 @@ export function MyPlanPage() {
 
   return (
     <div className="page">
-      <Link to="/" className="back-link">
-        ← Voltar para Hoje
+      <Link to={owner.homePath} className="back-link">
+        ← Voltar para {owner.homeLabel}
       </Link>
-      <h1 className="page-title">Meu plano</h1>
+      <h1 className="page-title">{owner.title}</h1>
 
       {error && <p className="banner banner-error">{error}</p>}
 
@@ -164,10 +166,10 @@ export function MyPlanPage() {
 
       {plan === null && (
         <section className="info-card form-card">
-          <h2>Você ainda não tem um plano</h2>
-          <p className="muted">Envie o PDF do seu nutricionista ou monte o plano à mão.</p>
-          <Link to="/plano/novo" className="btn btn-primary btn-link-as-button">
-            Cadastrar meu plano
+          <h2>{owner.memberId ? 'Ainda sem plano cadastrado' : 'Você ainda não tem um plano'}</h2>
+          <p className="muted">Envie o PDF do nutricionista ou monte o plano à mão.</p>
+          <Link to={owner.withOwner('/plano/novo')} className="btn btn-primary btn-link-as-button">
+            Cadastrar plano
           </Link>
         </section>
       )}
@@ -200,7 +202,7 @@ export function MyPlanPage() {
               Revisar e salvar
             </button>
           ) : (
-            <Link to="/plano/novo" className="btn btn-primary btn-link-as-button">
+            <Link to={owner.withOwner('/plano/novo')} className="btn btn-primary btn-link-as-button">
               Revisar e salvar
             </Link>
           )}
@@ -215,7 +217,7 @@ export function MyPlanPage() {
           <section className="info-card plan-summary">
             <h2>{plan.name}</h2>
             <p className="muted">
-              {plan.meals.length} refeições · {formatNumber(sumItems(plan.meals.flatMap((m) => m.meal_items)).kcal)} kcal
+              {plan.meals.length} {plan.meals.length === 1 ? 'refeição' : 'refeições'} · {formatNumber(sumItems(plan.meals.flatMap((m) => m.meal_items)).kcal)} kcal
               {plan.target_water_ml ? ` · água ${formatNumber(plan.target_water_ml)} mL` : ''}
             </p>
             <ul className="plan-summary-meals">
@@ -273,7 +275,7 @@ export function MyPlanPage() {
           <section className="info-card form-card">
             <h2>Trocar de plano</h2>
             <p className="muted">Recebeu um plano novo do nutricionista? Envie o PDF ou monte do zero.</p>
-            <Link to="/plano/novo" className="btn btn-outline-neutral btn-link-as-button">
+            <Link to={owner.withOwner('/plano/novo')} className="btn btn-outline-neutral btn-link-as-button">
               Enviar novo plano
             </Link>
           </section>

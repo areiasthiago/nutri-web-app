@@ -17,6 +17,7 @@ declare
   b uuid := gen_random_uuid();
   plan_a uuid;
   meal_a uuid;
+  member_a uuid;
   n int;
   report text := '';
 begin
@@ -49,6 +50,10 @@ begin
   insert into public.snack_logs (log_date, name, kcal) values (current_date, 'Chocolate', 140);
   insert into public.push_subscriptions (endpoint, p256dh, auth) values ('https://push.example/a', 'k', 'x');
   insert into public.reminder_settings (lead_minutes) values (5);
+  insert into public.household_members (nickname, kind) values ('Ana', 'adult') returning id into member_a;
+  insert into public.house_foods (name, slot, qty_value, qty_unit) values ('Arroz', 'almoco', 80, 'g');
+  insert into public.household_extras (name, qty_value, qty_unit) values ('Leite', 6, 'L');
+  perform public.replace_active_plan('{"origin":"manual","meals":[{"name":"Almoço","time":"12:00"}]}'::jsonb, member_a);
   select count(*) into n from public.plans; report := report || 'A vê planos: ' || n || '; ';
   select count(*) into n from public.ai_plan_extractions; report := report || 'A vê a própria leitura PDF: ' || n || '; ';
   update public.profiles set display_name = 'A' where id = a;
@@ -107,6 +112,16 @@ begin
     report := report || 'B lê chaves de push: PERMITIU; ';
   exception when others then
     report := report || 'B lê chaves de push: bloqueado (' || sqlstate || '); ';
+  end;
+  select count(*) into n from public.household_members; report := report || 'B vê pessoas da casa de A: ' || n || '; ';
+  update public.household_members set nickname = 'x'; get diagnostics n = row_count; report := report || 'B altera pessoa de A: ' || n || '; ';
+  select count(*) into n from public.house_foods; report := report || 'B vê comida da casa de A: ' || n || '; ';
+  select count(*) into n from public.household_extras; report := report || 'B vê extras de A: ' || n || '; ';
+  begin
+    perform public.replace_active_plan('{"origin":"manual","meals":[{"name":"x","time":"12:00"}]}'::jsonb, member_a);
+    report := report || 'B troca o plano da pessoa de A: PERMITIU; ';
+  exception when others then
+    report := report || 'B troca o plano da pessoa de A: bloqueado (' || sqlstate || '); ';
   end;
   select count(*) into n from public.custom_meals; report := report || 'B vê lista Já comi antes de A: ' || n || '; ';
   update public.custom_meals set kcal = 0;

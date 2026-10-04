@@ -77,6 +77,9 @@ export function AppHeader() {
             <Link to="/estatisticas" className="account-menu-item" onClick={() => setMenuOpen(false)}>
               Estatísticas
             </Link>
+            <Link to="/casa" className="account-menu-item" onClick={() => setMenuOpen(false)}>
+              Minha casa
+            </Link>
             <Link to="/conta" className="account-menu-item" onClick={() => setMenuOpen(false)}>
               Minha conta
             </Link>

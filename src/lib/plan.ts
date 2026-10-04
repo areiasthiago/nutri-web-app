@@ -45,9 +45,9 @@ export type Plan = {
   hydration_slots: HydrationSlot[]
 }
 
-/** Plano ativo do próprio usuário (não de pessoa da casa), com tudo dentro. */
-export async function fetchActivePlan(): Promise<Plan | null> {
-  const { data, error } = await client
+/** Plano ativo do próprio usuário (ou de uma pessoa da casa, com memberId), com tudo dentro. */
+export async function fetchActivePlan(memberId: string | null = null): Promise<Plan | null> {
+  const query = client
     .from('plans')
     .select(
       `id, name, status_note, target_kcal, target_protein_g, target_carbs_g, target_fat_g,
@@ -58,8 +58,7 @@ export async function fetchActivePlan(): Promise<Plan | null> {
        hydration_slots (id, time, ml, label)`,
     )
     .eq('active', true)
-    .is('household_member_id', null)
-    .maybeSingle()
+  const { data, error } = await (memberId ? query.eq('household_member_id', memberId) : query.is('household_member_id', null)).maybeSingle()
 
   if (error) throw error
   if (!data) return null

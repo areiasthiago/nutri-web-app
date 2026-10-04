@@ -18,6 +18,7 @@ import { extractPdfLines } from '../lib/pdfText'
 import { parsePlanText } from '../lib/planParser'
 import type { ParseResult } from '../lib/planParser'
 import { draftFromExtracted, emptyDraft, saveDraftAsActivePlan } from '../lib/planDraft'
+import { usePlanOwner } from '../lib/planOwner'
 import type { ExtractedPlan, PlanDraft } from '../lib/planDraft'
 
 // Camadas: 1) leitura no aparelho, sem IA e sem custo; 2) se ficar fraca (ou
@@ -50,6 +51,7 @@ function localFailureReason(r: ParseResult): string {
 /** Novo plano: ler o PDF (no aparelho; com IA se precisar) ou montar à mão, sempre com revisão. */
 export function NewPlanPage() {
   const navigate = useNavigate()
+  const owner = usePlanOwner()
   const [access, setAccess] = useState<AiAccess | null>(null)
   const [pending, setPending] = useState<SavedExtraction | null>(null)
   const [step, setStep] = useState<Step>({ kind: 'choose' })
@@ -163,7 +165,7 @@ export function NewPlanPage() {
 
   async function handleSave(draft: PlanDraft, extractionId: string | null) {
     setSaving(true)
-    const { error: saveError } = await saveDraftAsActivePlan(draft)
+    const { error: saveError } = await saveDraftAsActivePlan(draft, owner.memberId)
     setSaving(false)
     if (saveError) {
       setError(saveError)
@@ -171,7 +173,7 @@ export function NewPlanPage() {
       return
     }
     if (extractionId) await deleteExtraction(extractionId)
-    navigate('/', { replace: true })
+    navigate(owner.homePath, { replace: true })
   }
 
   // -------------------------------------------------------------------------
@@ -183,7 +185,7 @@ export function NewPlanPage() {
         ? 'Confira tudo com o PDF ao lado. A leitura da IA pode errar: corrija o que precisar antes de salvar.'
         : step.by === 'device'
           ? 'O celular leu o PDF sem IA. Confira tudo com o PDF ao lado e corrija o que precisar antes de salvar.'
-          : 'Preencha as refeições do seu plano. Só nome e horário de cada refeição são obrigatórios.'
+          : 'Preencha as refeições do plano. Só nome e horário de cada refeição são obrigatórios.'
     const reviewFile = step.file
     return (
       <div className="page">
@@ -228,10 +230,10 @@ export function NewPlanPage() {
   // -------------------------------------------------------------------------
   return (
     <div className="page">
-      <Link to="/plano" className="back-link">
-        ← Voltar para Meu plano
+      <Link to={owner.withOwner('/plano')} className="back-link">
+        ← Voltar para {owner.title}
       </Link>
-      <h1 className="page-title">Novo plano</h1>
+      <h1 className="page-title">{owner.memberId ? `Novo plano: ${owner.title.replace('Plano de ', '')}` : 'Novo plano'}</h1>
 
       {error && <p className="banner banner-error">{error}</p>}
 
@@ -350,7 +352,7 @@ export function NewPlanPage() {
 
           <section className="info-card form-card">
             <h2>Montar à mão</h2>
-            <p className="muted">Digite as refeições, os alimentos e as quantidades do seu plano.</p>
+            <p className="muted">Digite as refeições, os alimentos e as quantidades do plano.</p>
             <button
               type="button"
               className="btn btn-outline-neutral"

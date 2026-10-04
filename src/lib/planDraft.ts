@@ -265,9 +265,12 @@ function toPayload(d: PlanDraft) {
   }
 }
 
-/** Salva como plano ativo (o anterior é desativado e fica guardado). */
-export async function saveDraftAsActivePlan(d: PlanDraft): Promise<{ error: string | null }> {
-  const { error } = await client.rpc('replace_active_plan', { p: toPayload(d) })
+/**
+ * Salva como plano ativo (o anterior é desativado e fica guardado). Com
+ * memberId, é o plano de uma pessoa da casa.
+ */
+export async function saveDraftAsActivePlan(d: PlanDraft, memberId: string | null = null): Promise<{ error: string | null }> {
+  const { error } = await client.rpc('replace_active_plan', { p: toPayload(d), member: memberId })
   if (error) return { error: 'Não foi possível salvar o plano agora. Confira os campos e tente de novo.' }
   return { error: null }
 }

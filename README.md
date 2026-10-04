@@ -149,9 +149,15 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
   horário) e "Adiar 15 min" (cancela a repetição automática). Cada notificação leva um código de uso
   único (`notification_actions`) que a função confere; adiados em `reminder_snoozes`.
 
+- Minha casa (menu ☰): pessoas da casa (apelido, adulto ou criança com faixa de idade, fator de
+  porção e refeições feitas em casa por dia da semana), com plano próprio opcional para adultos (as
+  telas de plano aceitam `?pessoa=<id>`; `replace_active_plan(p, member)`); comida da casa (porção de
+  um adulto sem dieta por refeição, com sugestão a partir do almoço e jantar do plano) e extras da
+  casa por semana. Regras em `src/lib/household.ts` (testes em `src/lib/household.test.ts`).
+
 ## O que ainda não existe (próximas fatias)
 
-Pessoas da casa, lista de compras e apagar a conta pelo app — na ordem do briefing, seção 11.
+Lista de compras da semana e apagar a conta pelo app — na ordem do briefing, seção 11.
 
 ## IA (só VIP)
 

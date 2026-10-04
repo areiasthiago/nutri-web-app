@@ -124,6 +124,8 @@ async function remindOwner(server: () => Promise<webpush.ApplicationServer>, own
       .select("id, meals (id, name, time), hydration_slots (id, time, ml)")
       .eq("owner_id", ownerId)
       .eq("active", true)
+      // Só o plano da própria pessoa (as pessoas da casa não recebem lembretes).
+      .is("household_member_id", null)
       .maybeSingle(),
   ])
   if (!plan.data) return 0

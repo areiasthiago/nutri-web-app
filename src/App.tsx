@@ -11,6 +11,7 @@ import { shouldShowInstallInvite } from './lib/install'
 import { ProfileProvider } from './lib/profile'
 import { supabaseConfigError } from './lib/supabaseClient'
 import { AccountPage } from './pages/AccountPage'
+import { HouseholdPage } from './pages/HouseholdPage'
 import { InstallPage } from './pages/InstallPage'
 import { LoginPage } from './pages/LoginPage'
 import { MyPlanPage } from './pages/MyPlanPage'
@@ -83,6 +84,7 @@ function App() {
                 <Route path="/plano" element={<MyPlanPage />} />
                 <Route path="/plano/novo" element={<NewPlanPage />} />
                 <Route path="/estatisticas" element={<StatsPage />} />
+                <Route path="/casa" element={<HouseholdPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
