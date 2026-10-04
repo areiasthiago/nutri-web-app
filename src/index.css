@@ -1343,22 +1343,29 @@ input {
   gap: 10px;
 }
 
-/* Um grupo por linha; se não couber, a linha rola para o lado. */
+/* Um grupo por alimento; as opções quebram em mais de uma linha. */
+.swap-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
 .swap-chips {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: none;
 }
 
-.swap-chips::-webkit-scrollbar {
-  display: none;
-}
-
-.swap-chip {
-  flex-shrink: 0;
-  white-space: nowrap;
+.swap-custom {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--primary);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
 }
 
 .swap-chip {

@@ -12,7 +12,7 @@ import { AiTerms } from './AiTerms'
 
 type Props = {
   mealName: string
-  /** Alimentos da refeição que têm trocas previstas no plano. */
+  /** Alimentos da refeição (cada um é um grupo que pode ser trocado). */
   swapItems: MealItem[]
   initialSwaps: Swap[]
   /** A refeição já está marcada como feita pelo plano (o botão vira "Salvar trocas"). */
@@ -52,6 +52,15 @@ export function OffPlanSheet({
   onConfirm,
 }: Props) {
   const [swaps, setSwaps] = useState<Swap[]>(initialSwaps)
+  // Grupos com o campo "Outro…" aberto (troca escrita, fora das previstas no plano).
+  const [customOpen, setCustomOpen] = useState<Set<string>>(
+    () =>
+      new Set(
+        initialSwaps
+          .filter((s) => !swapItems.find((i) => i.id === s.item_id)?.substitutions.some((sub) => sub.text === s.substitution))
+          .map((s) => s.item_id),
+      ),
+  )
   const [library, setLibrary] = useState<CustomMeal[]>([])
   const [text, setText] = useState('')
   const [picked, setPicked] = useState<CustomMeal | null>(null)
@@ -73,9 +82,15 @@ export function OffPlanSheet({
 
   const swapFor = (itemId: string) => swaps.find((s) => s.item_id === itemId)?.substitution ?? ''
 
-  function chooseSwap(item: MealItem, substitution: string) {
+  function chooseSwap(item: MealItem, substitution: string, custom = false) {
     const others = swaps.filter((s) => s.item_id !== item.id)
     setSwaps(substitution ? [...others, { item_id: item.id, food: item.food, substitution }] : others)
+    setCustomOpen((open) => {
+      const next = new Set(open)
+      if (custom) next.add(item.id)
+      else next.delete(item.id)
+      return next
+    })
   }
 
   async function confirmSwaps() {
@@ -179,33 +194,56 @@ export function OffPlanSheet({
 
         {!picked && !form && swapItems.length > 0 && (
           <section className="swap-section" aria-label="Trocas do plano">
-            {/* Um grupo por linha: o alimento do plano (já selecionado) e as trocas previstas. */}
+            {/* Um grupo por alimento: o do plano (já selecionado), as trocas previstas e "Outro…". */}
             {swapItems.map((item) => {
               const chosen = swapFor(item.id)
+              const isCustom = customOpen.has(item.id)
               return (
-                <div key={item.id} className="swap-chips" role="radiogroup" aria-label={`Opções para ${item.food}`}>
-                  <button
-                    type="button"
-                    role="radio"
-                    aria-checked={!chosen}
-                    className={`swap-chip${!chosen ? ' is-selected' : ''}`}
-                    onClick={() => chooseSwap(item, '')}
-                  >
-                    {item.food}
-                    {item.qty_text && ` (${item.qty_text})`}
-                  </button>
-                  {item.substitutions.map((sub) => (
+                <div key={item.id} className="swap-group">
+                  <div className="swap-chips" role="radiogroup" aria-label={`Opções para ${item.food}`}>
                     <button
-                      key={sub.id}
                       type="button"
                       role="radio"
-                      aria-checked={chosen === sub.text}
-                      className={`swap-chip${chosen === sub.text ? ' is-selected' : ''}`}
-                      onClick={() => chooseSwap(item, sub.text)}
+                      aria-checked={!chosen && !isCustom}
+                      className={`swap-chip${!chosen && !isCustom ? ' is-selected' : ''}`}
+                      onClick={() => chooseSwap(item, '')}
                     >
-                      {sub.text}
+                      {item.food}
+                      {item.qty_text && ` (${item.qty_text})`}
                     </button>
-                  ))}
+                    {item.substitutions.map((sub) => (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={!isCustom && chosen === sub.text}
+                        className={`swap-chip${!isCustom && chosen === sub.text ? ' is-selected' : ''}`}
+                        onClick={() => chooseSwap(item, sub.text)}
+                      >
+                        {sub.text}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={isCustom}
+                      className={`swap-chip${isCustom ? ' is-selected' : ''}`}
+                      onClick={() => chooseSwap(item, '', true)}
+                    >
+                      Outro…
+                    </button>
+                  </div>
+                  {isCustom && (
+                    <input
+                      className="swap-custom"
+                      value={chosen}
+                      maxLength={80}
+                      autoFocus
+                      aria-label={`Troca para ${item.food}`}
+                      placeholder="Alimento e quantidade"
+                      onChange={(e) => chooseSwap(item, e.target.value, true)}
+                    />
+                  )}
                 </div>
               )
             })}

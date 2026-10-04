@@ -347,7 +347,7 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
       {offPlanMeal && (
         <OffPlanSheet
           mealName={offPlanMeal.name}
-          swapItems={offPlanMeal.meal_items.filter((i) => i.substitutions.length > 0)}
+          swapItems={offPlanMeal.meal_items}
           initialSwaps={isOffPlan(byMeal.get(offPlanMeal.id)) ? [] : (byMeal.get(offPlanMeal.id)?.swaps ?? [])}
           doneOnPlan={!!byMeal.get(offPlanMeal.id) && !isOffPlan(byMeal.get(offPlanMeal.id))}
           onConfirmSwaps={(swaps) => confirmSwaps(offPlanMeal, swaps)}
