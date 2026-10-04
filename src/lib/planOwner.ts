@@ -9,6 +9,7 @@ import { fetchMember } from './household'
 export function usePlanOwner() {
   const [params] = useSearchParams()
   const memberId = params.get('pessoa')
+  const fromOnboarding = params.get('de') === 'comecar'
   const [loaded, setLoaded] = useState<{ id: string; nickname: string | null } | null>(null)
 
   useEffect(() => {
@@ -29,9 +30,9 @@ export function usePlanOwner() {
     loading: !!memberId && loaded?.id !== memberId,
     title: memberId ? `Plano de ${nickname ?? '…'}` : 'Meu plano',
     /** Para onde voltar depois de salvar. */
-    homePath: memberId ? '/casa' : '/',
+    homePath: memberId ? (fromOnboarding ? '/casa?de=comecar' : '/casa') : '/',
     homeLabel: memberId ? 'Minha casa' : 'Hoje',
     /** O mesmo caminho, levando a pessoa junto. */
-    withOwner: (path: string) => (memberId ? `${path}?pessoa=${memberId}` : path),
+    withOwner: (path: string) => (memberId ? `${path}?pessoa=${memberId}${fromOnboarding ? '&de=comecar' : ''}` : path),
   }
 }

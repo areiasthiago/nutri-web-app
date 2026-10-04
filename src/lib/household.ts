@@ -155,12 +155,14 @@ export async function fetchMember(id: string): Promise<HouseholdMember | null> {
   return data ? ({ ...data, factor: Number(data.factor), has_plan: false } as HouseholdMember) : null
 }
 
-export async function saveMember(input: MemberInput, id?: string): Promise<void> {
+/** Cria ou atualiza a pessoa; devolve o id. */
+export async function saveMember(input: MemberInput, id?: string): Promise<string> {
   const row = { ...input, age_band: input.kind === 'child' ? input.age_band : null }
-  const { error } = id
-    ? await client.from('household_members').update(row).eq('id', id)
-    : await client.from('household_members').insert(row)
+  const { data, error } = id
+    ? await client.from('household_members').update(row).eq('id', id).select('id').single()
+    : await client.from('household_members').insert(row).select('id').single()
   if (error) throw error
+  return (data as { id: string }).id
 }
 
 /** Apaga a pessoa (e o plano dela, se houver). */

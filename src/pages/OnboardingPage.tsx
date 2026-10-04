@@ -270,7 +270,8 @@ function HouseStep({ onNext, onLeave }: { onNext: () => void; onLeave: () => voi
       <h1>Quem mora com você?</h1>
       <p>
         Cadastre as pessoas da casa para a lista de compras da semana sair com a quantidade certa para todos. Quem tem
-        plano próprio, como um cônjuge, entra com o plano dele; crianças e quem não tem plano entram pela comida da casa.
+        plano de nutricionista pode ter o plano cadastrado também, por PDF ou à mão, se você quiser; quem não tem entra
+        pela comida da casa.
       </p>
       <p className="muted">Ninguém além de você precisa de conta. Dá para fazer depois em Minha casa, no menu ☰.</p>
       {count === null ? (

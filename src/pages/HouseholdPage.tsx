@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   AGE_BANDS,
   ALL_HOME_MEALS,
@@ -109,6 +109,7 @@ export function HouseholdPage() {
 
 function MembersSection({ members, onChange }: { members: HouseholdMember[]; onChange: () => void }) {
   const [editing, setEditing] = useState<HouseholdMember | 'new' | null>(null)
+  const planPath = usePlanPath()
 
   return (
     <section className="household-section" aria-labelledby="pessoas-titulo">
@@ -146,12 +147,12 @@ function MembersSection({ members, onChange }: { members: HouseholdMember[]; onC
               <p className="member-meals">{homeMealsSummary(m.home_meals)}</p>
               {m.has_plan ? (
                 <p className="member-plan">
-                  Plano próprio. <Link to={`/plano?pessoa=${m.id}`}>Ver ou editar o plano</Link>
+                  Plano próprio. <Link to={planPath(`/plano?pessoa=${m.id}`)}>Ver ou editar o plano</Link>
                 </p>
               ) : (
                 <p className="member-plan muted">
                   Sem plano: entra pela comida da casa.{' '}
-                  {m.kind === 'adult' && <Link to={`/plano/novo?pessoa=${m.id}`}>Cadastrar plano próprio</Link>}
+                  <Link to={planPath(`/plano/novo?pessoa=${m.id}`)}>Cadastrar plano (opcional)</Link>
                 </p>
               )}
             </li>
@@ -175,7 +176,17 @@ function MembersSection({ members, onChange }: { members: HouseholdMember[]; onC
   )
 }
 
+/** Caminho das telas de plano, levando junto a volta para os primeiros passos. */
+function usePlanPath() {
+  const fromOnboarding = useSearchParams()[0].get('de') === 'comecar'
+  return (path: string) => (fromOnboarding ? `${path}&de=comecar` : path)
+}
+
 function MemberForm({ member, onDone, onCancel }: { member?: HouseholdMember; onDone: () => void; onCancel: () => void }) {
+  const navigate = useNavigate()
+  const planPath = usePlanPath()
+  // Plano de nutricionista: opcional; "agora" leva ao envio do PDF (ou à mão) depois de salvar.
+  const [planNow, setPlanNow] = useState(false)
   const [nickname, setNickname] = useState(member?.nickname ?? '')
   const [kind, setKind] = useState<'adult' | 'child'>(member?.kind ?? 'adult')
   const [band, setBand] = useState<AgeBand | null>(member?.age_band ?? null)
@@ -202,8 +213,9 @@ function MemberForm({ member, onDone, onCancel }: { member?: HouseholdMember; on
     setError(null)
     const input: MemberInput = { nickname: nickname.trim(), kind, age_band: band, factor, home_meals: homeMeals }
     try {
-      await saveMember(input, member?.id)
-      onDone()
+      const id = await saveMember(input, member?.id)
+      if (planNow) navigate(planPath(`/plano/novo?pessoa=${id}`))
+      else onDone()
     } catch {
       setError('Não foi possível salvar agora. Tente de novo.')
       setSaving(false)
@@ -292,10 +304,35 @@ function MemberForm({ member, onDone, onCancel }: { member?: HouseholdMember; on
         <small className="muted">Desmarque o que a pessoa come fora (ex.: almoço na escola de segunda a sexta).</small>
       </fieldset>
 
+      {!member?.has_plan && (
+        <fieldset className="quiet-fieldset">
+          <legend>Plano de nutricionista (opcional)</legend>
+          <label className="check-row">
+            <input type="radio" name="plan-now" checked={!planNow} onChange={() => setPlanNow(false)} />
+            <span>
+              Não tem, ou cadastrar depois
+              <small className="muted">Entra na lista de compras pela comida da casa.</small>
+            </span>
+          </label>
+          <label className="check-row">
+            <input type="radio" name="plan-now" checked={planNow} onChange={() => setPlanNow(true)} />
+            <span>
+              Cadastrar agora
+              <small className="muted">Envie o PDF (lido no celular ou com IA) ou monte à mão, como o seu.</small>
+            </span>
+          </label>
+        </fieldset>
+      )}
+      {member?.has_plan && (
+        <p className="muted">
+          Tem plano próprio. <Link to={planPath(`/plano?pessoa=${member.id}`)}>Ver ou editar o plano</Link>
+        </p>
+      )}
+
       {error && <p className="banner banner-error">{error}</p>}
       <div className="form-actions">
         <button type="submit" className="btn btn-primary" disabled={saving}>
-          {saving ? 'Salvando…' : 'Salvar'}
+          {saving ? 'Salvando…' : planNow ? 'Salvar e cadastrar plano' : 'Salvar'}
         </button>
         <button type="button" className="btn btn-outline-neutral" onClick={onCancel}>
           Cancelar
