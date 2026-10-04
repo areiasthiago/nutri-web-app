@@ -414,8 +414,25 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
           <p>
             <span className="muted">Diferença do plano nessas refeições:</span>
             <br />
-            <DeltaText value={deviation.kcal} unit=" kcal" /> · P<DeltaText value={deviation.protein_g} unit=" g" /> ·
-            C<DeltaText value={deviation.carbs_g} unit=" g" /> · G<DeltaText value={deviation.fat_g} unit=" g" />
+            <DeltaText value={deviation.kcal} unit=" kcal" />
+            {deviation.protein_g !== null && (
+              <>
+                {' · P'}
+                <DeltaText value={deviation.protein_g} unit=" g" />
+              </>
+            )}
+            {deviation.carbs_g !== null && (
+              <>
+                {' · C'}
+                <DeltaText value={deviation.carbs_g} unit=" g" />
+              </>
+            )}
+            {deviation.fat_g !== null && (
+              <>
+                {' · G'}
+                <DeltaText value={deviation.fat_g} unit=" g" />
+              </>
+            )}
           </p>
         )}
         <p>
@@ -435,6 +452,12 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
                 fat_g: plan.target_fat_g,
               }}
             />
+          </p>
+        )}
+        {dayTotals.protein_g === null && (
+          <p className="muted">
+            O plano não traz proteína, carboidrato e gordura de cada alimento; por isso a soma e a diferença comparam
+            só as calorias.
           </p>
         )}
         <p className="muted">Valores aproximados. {plan.name}.</p>

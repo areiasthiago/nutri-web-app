@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Meal, Totals } from './plan'
-import { sumItems } from './plan'
+import { ZERO_TOTALS, addTotals, itemTotals, sumItems } from './plan'
 import { supabase } from './supabaseClient'
 
 // Só usado nas telas logadas, quando supabaseConfigError já é null.
@@ -68,17 +68,6 @@ export function leftThePlan(meal: Meal, log: MealLog | undefined): boolean {
   })
 }
 
-const ZERO: Totals = { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
-
-function add(a: Totals, b: Totals): Totals {
-  return {
-    kcal: a.kcal + b.kcal,
-    protein_g: a.protein_g + b.protein_g,
-    carbs_g: a.carbs_g + b.carbs_g,
-    fat_g: a.fat_g + b.fat_g,
-  }
-}
-
 /**
  * O que foi comido numa refeição marcada: "fora do plano" conta pelo que foi
  * registrado; senão, os alimentos do plano, com cada alimento trocado contando
@@ -86,44 +75,51 @@ function add(a: Totals, b: Totals): Totals {
  */
 export function mealActualTotals(meal: Meal, log: MealLog): Totals {
   if (isOffPlan(log)) {
-    return {
-      kcal: log.actual_kcal ?? 0,
-      protein_g: log.actual_protein_g ?? 0,
-      carbs_g: log.actual_carbs_g ?? 0,
-      fat_g: log.actual_fat_g ?? 0,
-    }
+    return itemTotals({
+      kcal: log.actual_kcal,
+      protein_g: log.actual_protein_g,
+      carbs_g: log.actual_carbs_g,
+      fat_g: log.actual_fat_g,
+    })
   }
   return meal.meal_items.reduce((total, item) => {
     const swap = log.swaps.find((s) => s.item_id === item.id)
     const part: Totals =
       swap && swap.kcal !== null && swap.kcal !== undefined
-        ? { kcal: swap.kcal, protein_g: swap.protein_g ?? 0, carbs_g: swap.carbs_g ?? 0, fat_g: swap.fat_g ?? 0 }
-        : sumItems([item])
-    return add(total, part)
-  }, ZERO)
+        ? itemTotals({
+            kcal: swap.kcal,
+            protein_g: swap.protein_g ?? null,
+            carbs_g: swap.carbs_g ?? null,
+            fat_g: swap.fat_g ?? null,
+          })
+        : itemTotals(item)
+    return addTotals(total, part)
+  }, ZERO_TOTALS)
 }
 
 /** Quanto foi comido no dia, só nas refeições marcadas. */
 export function consumedTotals(meals: Meal[], logsByMeal: Map<string, MealLog>): Totals {
   return meals.reduce((total, meal) => {
     const log = logsByMeal.get(meal.id)
-    return log ? add(total, mealActualTotals(meal, log)) : total
-  }, ZERO)
+    return log ? addTotals(total, mealActualTotals(meal, log)) : total
+  }, ZERO_TOTALS)
 }
 
 /**
  * Diferença entre o que foi comido e o que o plano previa, nas refeições
- * marcadas (positivo = acima do plano, negativo = abaixo).
+ * marcadas (positivo = acima do plano, negativo = abaixo). Macro que o plano
+ * (ou o que foi comido) não informa fica desconhecido (null), não vira diferença.
  */
 export function planDeviation(meals: Meal[], logsByMeal: Map<string, MealLog>): Totals {
   const done = meals.filter((m) => logsByMeal.has(m.id))
   const planned = sumItems(done.flatMap((m) => m.meal_items))
   const consumed = consumedTotals(done, logsByMeal)
+  const diff = (c: number | null, p: number | null) => (c === null || p === null ? null : c - p)
   return {
     kcal: consumed.kcal - planned.kcal,
-    protein_g: consumed.protein_g - planned.protein_g,
-    carbs_g: consumed.carbs_g - planned.carbs_g,
-    fat_g: consumed.fat_g - planned.fat_g,
+    protein_g: diff(consumed.protein_g, planned.protein_g),
+    carbs_g: diff(consumed.carbs_g, planned.carbs_g),
+    fat_g: diff(consumed.fat_g, planned.fat_g),
   }
 }
 

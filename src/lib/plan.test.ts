@@ -163,3 +163,26 @@ describe('leftThePlan: quando a refeição conta como fora do plano', () => {
     expect(leftThePlan(meal, undefined)).toBe(false)
   })
 })
+
+describe('macros desconhecidos (plano só com calorias por alimento)', () => {
+  const kcalOnly = (id: string, kcal: number | null) => ({
+    id, food: id, qty_text: '', qty_value: null, qty_unit: null,
+    kcal, protein_g: null, carbs_g: null, fat_g: null, position: 0, substitutions: [],
+  })
+  const cafe: Meal = { id: 'cafe', name: 'Café', time: '07:00:00', position: 0,
+    meal_items: [kcalOnly('ovos', 146), kcalOnly('pao', 65), kcalOnly('canela', null)] }
+  const base = { id: 'l', meal_id: 'cafe', log_date: '2026-10-04', done_at: '', custom_meal_id: null,
+    actual_kcal: null, actual_protein_g: null, actual_carbs_g: null, actual_fat_g: null }
+
+  it('soma as calorias e deixa o macro desconhecido (não zero)', () => {
+    const t = mealActualTotals(cafe, { ...base, swaps: [], actual_name: null })
+    expect(t).toEqual({ kcal: 211, protein_g: null, carbs_g: null, fat_g: null })
+  })
+
+  it('a diferença compara só o que o plano informa (as calorias)', () => {
+    const logs = new Map<string, MealLog>([
+      ['cafe', { ...base, swaps: [], actual_name: 'Sucrilhos', actual_kcal: 303, actual_protein_g: 8, actual_carbs_g: 50, actual_fat_g: 8 }],
+    ])
+    expect(planDeviation([cafe], logs)).toEqual({ kcal: 92, protein_g: null, carbs_g: null, fat_g: null })
+  })
+})

@@ -125,18 +125,36 @@ export function highlightedMealIndex(meals: Meal[], nowMinutes: number, doneMeal
   )
 }
 
-export type Totals = { kcal: number; protein_g: number; carbs_g: number; fat_g: number }
+/**
+ * Soma de calorias e macros. Um macro `null` é DESCONHECIDO (o plano não
+ * informa), não zero: muitos planos trazem só as calorias por alimento.
+ */
+export type Totals = { kcal: number; protein_g: number | null; carbs_g: number | null; fat_g: number | null }
+
+export const ZERO_TOTALS: Totals = { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+
+const addMacro = (a: number | null, b: number | null) => (a === null || b === null ? null : a + b)
+
+export function addTotals(a: Totals, b: Totals): Totals {
+  return {
+    kcal: a.kcal + b.kcal,
+    protein_g: addMacro(a.protein_g, b.protein_g),
+    carbs_g: addMacro(a.carbs_g, b.carbs_g),
+    fat_g: addMacro(a.fat_g, b.fat_g),
+  }
+}
+
+/**
+ * Valores de um alimento. Sem calorias (ex.: "canela a gosto") ele não pesa
+ * na conta; com calorias mas sem um macro, aquele macro fica desconhecido.
+ */
+export function itemTotals(i: Pick<MealItem, 'kcal' | 'protein_g' | 'carbs_g' | 'fat_g'>): Totals {
+  if (i.kcal === null) return ZERO_TOTALS
+  return { kcal: i.kcal, protein_g: i.protein_g, carbs_g: i.carbs_g, fat_g: i.fat_g }
+}
 
 export function sumItems(items: MealItem[]): Totals {
-  return items.reduce(
-    (t, i) => ({
-      kcal: t.kcal + (i.kcal ?? 0),
-      protein_g: t.protein_g + (i.protein_g ?? 0),
-      carbs_g: t.carbs_g + (i.carbs_g ?? 0),
-      fat_g: t.fat_g + (i.fat_g ?? 0),
-    }),
-    { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
-  )
+  return items.reduce((t, i) => addTotals(t, itemTotals(i)), ZERO_TOTALS)
 }
 
 export function formatNumber(n: number): string {
