@@ -1042,3 +1042,158 @@ input {
   font: inherit;
   font-size: 13px;
 }
+
+/* Água */
+
+.water-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.water-card p {
+  margin: 0;
+}
+
+.water-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.water-head h2 {
+  margin: 0;
+}
+
+.water-amount {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.water-amount strong {
+  font-size: 20px;
+  color: var(--text);
+}
+
+.water-bar span {
+  background: var(--blue);
+}
+
+.water-status {
+  font-size: 14px;
+}
+
+.water-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.water-button {
+  padding: 0 4px;
+  white-space: nowrap;
+  background: var(--bg);
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.water-button:not(:disabled):active {
+  background: var(--blue);
+  color: #fff;
+}
+
+.water-button-other {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.water-custom {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.water-custom input {
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.water-next {
+  font-size: 14px;
+}
+
+.water-details summary {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  color: var(--blue);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.water-slots,
+.water-logs {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.water-slots li {
+  display: grid;
+  grid-template-columns: 18px 48px 1fr auto;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.water-slots li.is-reached {
+  color: var(--text);
+}
+
+.water-slots li.is-reached .water-slot-mark {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.water-slots li.is-due:not(.is-reached) .water-slot-mark {
+  color: var(--carrot);
+}
+
+.water-slot-time,
+.water-slot-ml {
+  font-variant-numeric: tabular-nums;
+}
+
+.water-note {
+  margin-top: 8px !important;
+  font-size: 13px;
+}
+
+.water-logs li {
+  display: grid;
+  grid-template-columns: 56px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.water-button small {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.water-remove {
+  min-height: 32px;
+  padding: 2px 8px;
+  color: var(--error-text);
+  font-size: 13px;
+}

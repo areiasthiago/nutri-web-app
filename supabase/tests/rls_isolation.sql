@@ -44,6 +44,7 @@ begin
   select id into meal_a from public.meals where plan_id = plan_a limit 1;
   insert into public.meal_logs (meal_id, log_date, meal_name, meal_time)
     values (meal_a, current_date, 'Almoço', '12:00');
+  insert into public.water_logs (log_date, ml) values (current_date, 362);
   select count(*) into n from public.plans; report := report || 'A vê planos: ' || n || '; ';
   select count(*) into n from public.ai_plan_extractions; report := report || 'A vê a própria leitura PDF: ' || n || '; ';
   update public.profiles set display_name = 'A' where id = a;
@@ -68,6 +69,15 @@ begin
     report := report || 'B marca refeição de A: PERMITIU; ';
   exception when others then
     report := report || 'B marca refeição de A: bloqueado (' || sqlstate || '); ';
+  end;
+  select count(*) into n from public.water_logs; report := report || 'B vê água de A: ' || n || '; ';
+  delete from public.water_logs;
+  get diagnostics n = row_count; report := report || 'B apaga água de A: ' || n || '; ';
+  begin
+    insert into public.water_logs (owner_id, log_date, ml) values (a, current_date, 999);
+    report := report || 'B registra água em nome de A: PERMITIU; ';
+  exception when others then
+    report := report || 'B registra água em nome de A: bloqueado (' || sqlstate || '); ';
   end;
   select count(*) into n from public.ai_access; report := report || 'B vê acesso IA de A: ' || n || '; ';
   select count(*) into n from public.ai_usage; report := report || 'B vê uso IA de A: ' || n || '; ';

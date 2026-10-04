@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { WaterCard } from '../components/WaterCard'
 import { fetchMealLogs, markMealDone, unmarkMeal, updateSwaps } from '../lib/mealLogs'
 import type { MealLog, Swap } from '../lib/mealLogs'
 import {
@@ -261,8 +262,6 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
 
   const highlighted = highlightedMealIndex(plan.meals, now, doneIds)
   const dayTotals = sumItems(plan.meals.flatMap((m) => m.meal_items))
-  const protocolMl = plan.hydration_slots.reduce((sum, s) => sum + s.ml, 0)
-  const nextSlot = plan.hydration_slots.find((s) => timeToMinutes(s.time) >= now)
 
   function badgeFor(index: number): string | null {
     if (index !== highlighted) return null
@@ -319,25 +318,7 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
       </section>
 
       {plan.target_water_ml && (
-        <section className="info-card water-card">
-          <h2>Água</h2>
-          <p className="water-target">
-            Meta do dia: <strong>{formatNumber(plan.target_water_ml)} mL</strong>
-          </p>
-          {nextSlot && (
-            <p>
-              Próximo horário: <strong>{formatTime(nextSlot.time)}</strong> · {nextSlot.ml} mL
-              {nextSlot.label && ` · ${nextSlot.label}`}
-            </p>
-          )}
-          {protocolMl > 0 && protocolMl !== plan.target_water_ml && (
-            <p className="muted">
-              Os {plan.hydration_slots.length} horários do plano somam {formatNumber(protocolMl)} mL.
-              O progresso é medido contra a meta de {formatNumber(plan.target_water_ml)} mL.
-            </p>
-          )}
-          <p className="muted">O registro de água chega na próxima atualização.</p>
-        </section>
+        <WaterCard targetMl={plan.target_water_ml} slots={plan.hydration_slots} date={date} nowMinutes={now} />
       )}
 
       <section className="info-card">

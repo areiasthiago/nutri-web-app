@@ -112,13 +112,16 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
 - Marcar refeição como feita com um toque na tela Hoje (e desmarcar), indicando a troca usada
   em cada alimento; contador "X de N feitas"; o destaque pula as refeições já feitas. O dia
   é o do fuso do usuário (testes em `src/lib/plan.test.ts`).
+- Água na tela Hoje: progresso contra a meta do plano, botões de um toque (200/500 mL e o
+  volume do protocolo) e "Outro", horários do plano como guia e registros do dia com
+  "Apagar" (regras testadas em `src/lib/water.test.ts`).
 - Cabeçalho com menu da conta: "Minha conta" (nome para a saudação, fuso horário, definir ou
   trocar senha) e "Sair".
 - Deploy automático para o GitHub Pages a cada push na `main`.
 
 ## O que ainda não existe (próximas fatias)
 
-Registro de água, lembretes por notificação, histórico, edição manual do plano, envio de PDF, pessoas da casa, lista de
+Lembretes por notificação, histórico, edição manual do plano, envio de PDF, pessoas da casa, lista de
 compras e apagar a conta pelo app — na ordem do briefing, seção 11.
 
 ## IA (só VIP)
