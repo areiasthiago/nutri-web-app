@@ -12,7 +12,8 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(data.title || 'Nutriê', {
       body: data.body || '',
       icon: 'icons/icon-192.png',
-      badge: 'icons/icon-192.png',
+      // Ícone pequeno da barra de status: o Android usa só a silhueta (transparência).
+      badge: 'icons/badge-96.png',
       tag: data.tag,
       data: { url: data.url || '/nutri-web-app/' },
     }),
