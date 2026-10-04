@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Plan } from './plan'
 import { supabase } from './supabaseClient'
 
 // Só usado nas telas logadas, quando supabaseConfigError já é null.
@@ -36,6 +37,8 @@ export type PlanDraft = {
   hydration_slots: DraftSlot[]
   /** Pontos que a IA marcou para conferir (não são salvos). */
   warnings: string[]
+  /** O que uma edição com IA mudou (não é salvo). */
+  changes: string[]
 }
 
 /** Formato que a IA devolve (supabase/functions/ai-extract-plan). */
@@ -61,6 +64,8 @@ export type ExtractedPlan = {
   }[]
   hydration_slots: { time: string; ml: number; label: string | null }[]
   warnings: string[]
+  /** Só na edição com IA: lista do que mudou. */
+  changes?: string[]
 }
 
 let keySeq = 0
@@ -101,6 +106,7 @@ export function emptyDraft(): PlanDraft {
     meals: [emptyMeal()],
     hydration_slots: [],
     warnings: [],
+    changes: [],
   }
 }
 
@@ -141,7 +147,46 @@ export function draftFromExtracted(p: ExtractedPlan): PlanDraft {
       label: s.label ?? '',
     })),
     warnings: p.warnings ?? [],
+    changes: p.changes ?? [],
   }
+}
+
+/** Plano salvo -> formato da IA/rascunho (sem ids), para editar à mão ou com IA. */
+export function planToExtracted(plan: Plan): ExtractedPlan {
+  return {
+    name: plan.name,
+    status_note: plan.status_note,
+    targets: {
+      kcal: plan.target_kcal,
+      protein_g: plan.target_protein_g,
+      carbs_g: plan.target_carbs_g,
+      fat_g: plan.target_fat_g,
+      water_ml: plan.target_water_ml,
+    },
+    notes: plan.notes,
+    meals: plan.meals.map((m) => ({
+      name: m.name,
+      time: m.time.slice(0, 5),
+      items: m.meal_items.map((i) => ({
+        food: i.food,
+        qty_text: i.qty_text,
+        qty_value: i.qty_value,
+        qty_unit: i.qty_unit,
+        kcal: i.kcal,
+        protein_g: i.protein_g,
+        carbs_g: i.carbs_g,
+        fat_g: i.fat_g,
+        substitutions: i.substitutions.map((s) => s.text),
+      })),
+    })),
+    hydration_slots: plan.hydration_slots.map((s) => ({ time: s.time.slice(0, 5), ml: s.ml, label: s.label })),
+    warnings: [],
+  }
+}
+
+/** Rascunho para editar o plano atual (salvar cria uma versão nova, origem "manual"). */
+export function draftFromPlan(plan: Plan): PlanDraft {
+  return { ...draftFromExtracted(planToExtracted(plan)), origin: 'manual' }
 }
 
 /** "1.503" / "80,5" / "" -> 1503 / 80.5 / null. Texto inválido também vira null. */

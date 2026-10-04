@@ -73,6 +73,17 @@ export function PlanEditor({ initial, saving, onSave, onCancel }: Props) {
         </div>
       )}
 
+      {draft.changes.length > 0 && (
+        <div className="banner banner-info">
+          <strong>O que a IA mudou:</strong>
+          <ul>
+            {draft.changes.map((c) => (
+              <li key={c}>{c}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {draft.warnings.length > 0 && (
         <div className="banner banner-attention">
           <strong>A IA pediu para você conferir:</strong>

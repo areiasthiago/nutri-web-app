@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AiQuotaBar } from '../components/AiQuota'
+import { AiTerms } from '../components/AiTerms'
 import { PlanEditor } from '../components/PlanEditor'
 import {
   AI_READ_ESTIMATE_USD,
@@ -44,26 +45,6 @@ function localFailureReason(r: ParseResult): string {
   const meals = r.plan.meals.length
   const items = r.plan.meals.reduce((s, m) => s + m.items.length, 0)
   return `Consegui ler só parte do plano: ${meals} refeição(ões) e ${items} alimento(s).`
-}
-
-function AiTerms({ onAccept }: { onAccept: () => void }) {
-  return (
-    <>
-      <p>Antes de usar a IA, leia como ela funciona:</p>
-      <ul className="terms-list">
-        <li>
-          O PDF é enviado ao <strong>Claude</strong>, da empresa Anthropic, só para ser transcrito. O arquivo não
-          fica guardado no app; só a transcrição, até você salvar ou descartar.
-        </li>
-        <li>Pelas regras da Anthropic, o que é enviado pela API não é usado para treinar a IA.</li>
-        <li>A IA pode errar. Você revisa e corrige tudo antes de salvar.</li>
-        <li>A IA só transcreve o plano: não cria dieta nem faz recomendações.</li>
-      </ul>
-      <button type="button" className="btn btn-primary" onClick={onAccept}>
-        Entendi e aceito
-      </button>
-    </>
-  )
 }
 
 /** Novo plano: ler o PDF (no aparelho; com IA se precisar) ou montar à mão, sempre com revisão. */
@@ -247,8 +228,8 @@ export function NewPlanPage() {
   // -------------------------------------------------------------------------
   return (
     <div className="page">
-      <Link to="/" className="back-link">
-        ← Voltar para Hoje
+      <Link to="/plano" className="back-link">
+        ← Voltar para Meu plano
       </Link>
       <h1 className="page-title">Novo plano</h1>
 

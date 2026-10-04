@@ -1200,3 +1200,25 @@ input {
   color: var(--error-text);
   font-size: 13px;
 }
+
+/* Meu plano */
+
+.plan-summary h2 {
+  margin-bottom: 2px;
+}
+
+.plan-summary-meals {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 12px;
+  font-size: 14px;
+}
+
+.ai-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

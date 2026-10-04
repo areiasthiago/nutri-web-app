@@ -57,8 +57,18 @@ export async function extractPlanFromPdf(file: File): Promise<ExtractResult> {
   if (file.size > MAX_PDF_MB * 1024 * 1024) {
     return { ok: false, error: `O PDF passa de ${MAX_PDF_MB} MB.`, network: false }
   }
-  const pdf_base64 = await fileToBase64(file)
-  const { data, error } = await client.functions.invoke('ai-extract-plan', { body: { pdf_base64 } })
+  return invokePlanAi({ pdf_base64: await fileToBase64(file) })
+}
+
+export const MAX_INSTRUCTION_CHARS = 1000
+
+/** Aplica ao plano um pedido em texto livre ("atrase o jantar em 1 hora"); devolve o plano alterado + o que mudou. */
+export async function editPlanWithAi(plan: ExtractedPlan, instruction: string): Promise<ExtractResult> {
+  return invokePlanAi({ mode: 'edit', plan, instruction })
+}
+
+async function invokePlanAi(body: Record<string, unknown>): Promise<ExtractResult> {
+  const { data, error } = await client.functions.invoke('ai-extract-plan', { body })
 
   if (error) {
     // A função devolve { error: "mensagem em português" } nos erros previstos.
@@ -122,3 +132,19 @@ export function quotaPercent(usd: number, limit: number): number {
 
 /** Custo típico de uma leitura de PDF com IA, para estimar a % da cota antes de ler. */
 export const AI_READ_ESTIMATE_USD = 0.06
+/** Custo típico de uma edição do plano com IA. */
+export const AI_EDIT_ESTIMATE_USD = 0.03
+
+/**
+ * Se a resposta da IA não chegou (conexão caiu), procura o resultado guardado
+ * no servidor por até `timeoutMs` (a IA costuma levar 30-90 s).
+ */
+export async function waitForSavedResult(startedAt: Date, timeoutMs = 150_000): Promise<SavedExtraction | null> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const found = await fetchLatestExtraction(startedAt)
+    if (found) return found
+    await new Promise((r) => setTimeout(r, 5_000))
+  }
+  return null
+}

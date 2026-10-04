@@ -1,7 +1,11 @@
-// Lê o PDF de um plano alimentar com o Claude e devolve o plano estruturado,
-// para o app mostrar na tela de revisão. O plano em si só é salvo depois da
-// revisão; aqui fica guardada apenas a leitura (ai_plan_extractions), para
-// não se perder se a conexão do celular cair durante a espera.
+// IA do plano alimentar (Claude), em dois modos:
+//   - "extract" (padrão): lê o PDF do plano e devolve o plano estruturado;
+//   - "edit": aplica ao plano atual um pedido em texto livre ("atrase o
+//     jantar em uma hora") e devolve o plano inteiro já alterado + a lista
+//     do que mudou.
+// Nos dois casos o resultado vai para a tela de revisão; o plano em si só é
+// salvo depois que a pessoa confirma. Aqui fica guardado apenas o resultado
+// (ai_plan_extractions), para não se perder se a conexão do celular cair.
 //
 // Acesso: só usuários VIP (tabela ai_access) que aceitaram o termo e ainda
 // têm saldo no teto mensal. Cada chamada grava tokens e custo em ai_usage.
@@ -9,18 +13,17 @@
 // Segredos (Supabase -> Edge Functions -> Secrets):
 //   ANTHROPIC_API_KEY  chave da API da Anthropic (obrigatório)
 //   AI_MODEL           opcional; padrão claude-opus-5-5
-//   AI_EFFORT          opcional; padrão low (transcrever não pede raciocínio
-//                      longo, e o raciocínio é cobrado como saída)
+//   AI_EFFORT          opcional; padrão low (o raciocínio é cobrado como saída)
 // SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já vêm prontos no ambiente.
 //
-// Privacidade: o conteúdo do PDF e do plano nunca vai para os logs.
+// Privacidade: o conteúdo do PDF, do plano e do pedido nunca vai para os logs.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
 import Anthropic from "npm:@anthropic-ai/sdk"
 import { createClient } from "npm:@supabase/supabase-js@2"
 
-const FEATURE = "extract_plan"
 const MAX_PDF_BYTES = 10 * 1024 * 1024
+const MAX_INSTRUCTION_CHARS = 1000
 
 // US$ por milhão de tokens (entrada, saída). Tokens de raciocínio contam como saída.
 const PRICES: Record<string, { input: number; output: number }> = {
@@ -43,80 +46,92 @@ function json(body: unknown, status = 200) {
 }
 
 const nullableNumber = { type: ["number", "null"] }
+const stringList = { type: "array", items: { type: "string" } }
 
-// Mesmo formato do rascunho do app (src/lib/planDraft.ts).
-const PLAN_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: ["name", "status_note", "targets", "notes", "meals", "hydration_slots", "warnings"],
-  properties: {
-    name: { type: "string" },
-    status_note: { type: ["string", "null"] },
-    targets: {
+// Mesmo formato do rascunho do app (src/lib/planDraft.ts, ExtractedPlan).
+const PLAN_PROPERTIES = {
+  name: { type: "string" },
+  status_note: { type: ["string", "null"] },
+  targets: {
+    type: "object",
+    additionalProperties: false,
+    required: ["kcal", "protein_g", "carbs_g", "fat_g", "water_ml"],
+    properties: {
+      kcal: nullableNumber,
+      protein_g: nullableNumber,
+      carbs_g: nullableNumber,
+      fat_g: nullableNumber,
+      water_ml: nullableNumber,
+    },
+  },
+  notes: stringList,
+  meals: {
+    type: "array",
+    items: {
       type: "object",
       additionalProperties: false,
-      required: ["kcal", "protein_g", "carbs_g", "fat_g", "water_ml"],
+      required: ["name", "time", "items"],
       properties: {
-        kcal: nullableNumber,
-        protein_g: nullableNumber,
-        carbs_g: nullableNumber,
-        fat_g: nullableNumber,
-        water_ml: nullableNumber,
-      },
-    },
-    notes: { type: "array", items: { type: "string" } },
-    meals: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["name", "time", "items"],
-        properties: {
-          name: { type: "string" },
-          time: { type: "string" },
+        name: { type: "string" },
+        time: { type: "string" },
+        items: {
+          type: "array",
           items: {
-            type: "array",
-            items: {
-              type: "object",
-              additionalProperties: false,
-              required: [
-                "food", "qty_text", "qty_value", "qty_unit",
-                "kcal", "protein_g", "carbs_g", "fat_g", "substitutions",
-              ],
-              properties: {
-                food: { type: "string" },
-                qty_text: { type: "string" },
-                qty_value: nullableNumber,
-                qty_unit: { anyOf: [{ type: "string", enum: ["g", "mL", "un"] }, { type: "null" }] },
-                kcal: nullableNumber,
-                protein_g: nullableNumber,
-                carbs_g: nullableNumber,
-                fat_g: nullableNumber,
-                substitutions: { type: "array", items: { type: "string" } },
-              },
+            type: "object",
+            additionalProperties: false,
+            required: [
+              "food", "qty_text", "qty_value", "qty_unit",
+              "kcal", "protein_g", "carbs_g", "fat_g", "substitutions",
+            ],
+            properties: {
+              food: { type: "string" },
+              qty_text: { type: "string" },
+              qty_value: nullableNumber,
+              qty_unit: { anyOf: [{ type: "string", enum: ["g", "mL", "un"] }, { type: "null" }] },
+              kcal: nullableNumber,
+              protein_g: nullableNumber,
+              carbs_g: nullableNumber,
+              fat_g: nullableNumber,
+              substitutions: stringList,
             },
           },
         },
       },
     },
-    hydration_slots: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["time", "ml", "label"],
-        properties: {
-          time: { type: "string" },
-          ml: { type: "number" },
-          label: { type: ["string", "null"] },
-        },
+  },
+  hydration_slots: {
+    type: "array",
+    items: {
+      type: "object",
+      additionalProperties: false,
+      required: ["time", "ml", "label"],
+      properties: {
+        time: { type: "string" },
+        ml: { type: "number" },
+        label: { type: ["string", "null"] },
       },
     },
-    warnings: { type: "array", items: { type: "string" } },
   },
+  warnings: stringList,
 }
 
-const SYSTEM = `Você transcreve planos alimentares em PDF, feitos por nutricionistas brasileiros, para um formato estruturado. O resultado vai para uma tela de revisão em que a própria pessoa confere e corrige tudo antes de salvar.
+const PLAN_REQUIRED = ["name", "status_note", "targets", "notes", "meals", "hydration_slots", "warnings"]
+
+const EXTRACT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: PLAN_REQUIRED,
+  properties: PLAN_PROPERTIES,
+}
+
+const EDIT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: [...PLAN_REQUIRED, "changes"],
+  properties: { ...PLAN_PROPERTIES, changes: stringList },
+}
+
+const EXTRACT_SYSTEM = `Você transcreve planos alimentares em PDF, feitos por nutricionistas brasileiros, para um formato estruturado. O resultado vai para uma tela de revisão em que a própria pessoa confere e corrige tudo antes de salvar.
 
 Regras:
 - Transcreva só o que está no PDF. Não invente alimentos, quantidades, calorias, metas nem horários, e não dê recomendações. Campo numérico ausente no PDF fica null.
@@ -131,6 +146,21 @@ Regras:
 - "warnings": tudo o que ficou em dúvida, ilegível, ambíguo ou que não coube nos campos, em frases curtas para a pessoa conferir. Lista vazia se nada.
 - Se o PDF não for um plano alimentar, devolva "meals" vazio e explique em "warnings".`
 
+const EDIT_SYSTEM = `Você edita um plano alimentar estruturado a pedido da própria pessoa que o segue. O plano foi passado pelo nutricionista dela. O resultado vai para uma tela de revisão em que ela confere tudo antes de salvar.
+
+Regras:
+- Aplique exatamente o que foi pedido e mais nada. Todo o resto fica idêntico: mesmos textos, números, ordem dos itens, trocas, metas e observações.
+- Devolva o plano INTEIRO no formato pedido, já com as alterações.
+- "time" no formato HH:MM (24h). Se mudar horários, deixe as refeições em ordem de horário.
+- Se o pedido mexer em horários de refeição e houver horários de água ligados a elas (ex.: "No jantar"), só mude os de água se o pedido disser.
+- Não invente alimentos, quantidades nem valores nutricionais que a pessoa não deu. Ao trocar um alimento por outro a pedido dela, mantenha a quantidade que ela disser; sem quantidade, mantenha a do original e avise em "warnings". Deixe kcal e macros do item trocado como null se não souber.
+- Não dê recomendações nutricionais nem decida pela pessoa. Se o pedido for vago, impossível ou pedir uma decisão nutricional (ex.: "diminua as calorias", "deixe mais saudável"), NÃO altere o plano e explique em "warnings" que esse tipo de ajuste é com o nutricionista.
+- "changes": lista curta, em português, de cada alteração feita, no formato "Jantar: 19:00 → 20:00" ou "Almoço: arroz trocado por quinoa (80 g)". Lista vazia se nada mudou.
+- "warnings": dúvidas ou partes do pedido que não foram aplicadas, em frases curtas. Lista vazia se nada.
+- Não inclua nomes de pessoas em nenhum campo.`
+
+type Mode = "extract" | "edit"
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS })
   if (req.method !== "POST") return json({ error: "Método não permitido." }, 405)
@@ -140,10 +170,6 @@ Deno.serve(async (req) => {
   const model = Deno.env.get("AI_MODEL") || "claude-opus-5-5"
   const price = PRICES[model] ?? PRICES["claude-opus-5-5"]
   const effort = Deno.env.get("AI_EFFORT") || "low"
-  // O Haiku 4.5 não aceita "effort".
-  const outputConfig = model.startsWith("claude-haiku")
-    ? { format: { type: "json_schema", schema: PLAN_SCHEMA } }
-    : { effort, format: { type: "json_schema", schema: PLAN_SCHEMA } }
 
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -163,7 +189,7 @@ Deno.serve(async (req) => {
     .select("monthly_limit_usd, consented_at")
     .eq("user_id", userId)
     .maybeSingle()
-  if (!access) return json({ error: "A leitura com IA é exclusiva para usuários VIP." }, 403)
+  if (!access) return json({ error: "A IA é exclusiva para usuários VIP." }, 403)
   if (!access.consented_at) return json({ error: "Aceite o termo de uso da IA antes de continuar." }, 403)
 
   const monthStart = new Date()
@@ -180,18 +206,46 @@ Deno.serve(async (req) => {
     return json({ error: "Você atingiu o limite de uso da IA deste mês." }, 429)
   }
 
-  // O PDF chega em base64 no corpo.
-  let pdfBase64: string
+  // Corpo: { pdf_base64 } (extract) ou { mode: "edit", plan, instruction }.
+  let body: Record<string, unknown>
   try {
-    const body = await req.json()
-    pdfBase64 = String(body?.pdf_base64 ?? "")
+    body = await req.json()
   } catch {
     return json({ error: "Envio inválido." }, 400)
   }
-  if (!pdfBase64) return json({ error: "Nenhum PDF recebido." }, 400)
-  if (pdfBase64.length * 0.75 > MAX_PDF_BYTES) {
-    return json({ error: "O PDF passa de 10 MB." }, 413)
+  const mode: Mode = body?.mode === "edit" ? "edit" : "extract"
+
+  let content: Anthropic.ContentBlockParam[]
+  if (mode === "extract") {
+    const pdfBase64 = String(body?.pdf_base64 ?? "")
+    if (!pdfBase64) return json({ error: "Nenhum PDF recebido." }, 400)
+    if (pdfBase64.length * 0.75 > MAX_PDF_BYTES) return json({ error: "O PDF passa de 10 MB." }, 413)
+    content = [
+      { type: "document", source: { type: "base64", media_type: "application/pdf", data: pdfBase64 } },
+      { type: "text", text: "Transcreva este plano alimentar no formato pedido." },
+    ]
+  } else {
+    const instruction = String(body?.instruction ?? "").trim()
+    if (!instruction) return json({ error: "Escreva o que você quer mudar no plano." }, 400)
+    if (instruction.length > MAX_INSTRUCTION_CHARS) {
+      return json({ error: `O pedido passa de ${MAX_INSTRUCTION_CHARS} caracteres.` }, 400)
+    }
+    if (!body?.plan || typeof body.plan !== "object") return json({ error: "Plano atual não recebido." }, 400)
+    content = [
+      {
+        type: "text",
+        text:
+          `Plano atual (JSON):\n${JSON.stringify(body.plan)}\n\n` +
+          `Pedido da pessoa (aplique só isto):\n<pedido>\n${instruction}\n</pedido>`,
+      },
+    ]
   }
+
+  const schema = mode === "extract" ? EXTRACT_SCHEMA : EDIT_SCHEMA
+  // O Haiku 4.5 não aceita "effort".
+  const outputConfig = model.startsWith("claude-haiku")
+    ? { format: { type: "json_schema", schema } }
+    : { effort, format: { type: "json_schema", schema } }
 
   const client = new Anthropic({ apiKey })
   let response: Anthropic.Message
@@ -199,34 +253,27 @@ Deno.serve(async (req) => {
     response = await client.messages.create({
       model,
       max_tokens: 16000,
-      system: SYSTEM,
+      system: mode === "extract" ? EXTRACT_SYSTEM : EDIT_SYSTEM,
       output_config: outputConfig,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "document",
-              source: { type: "base64", media_type: "application/pdf", data: pdfBase64 },
-            },
-            { type: "text", text: "Transcreva este plano alimentar no formato pedido." },
-          ],
-        },
-      ],
+      messages: [{ role: "user", content }],
     } as Anthropic.MessageCreateParamsNonStreaming)
   } catch (err) {
     if (err instanceof Anthropic.RateLimitError) {
       return json({ error: "A IA está ocupada agora. Tente de novo em 1 minuto." }, 503)
     }
     if (err instanceof Anthropic.BadRequestError) {
-      console.error("anthropic bad request", err.status)
-      return json({ error: "A IA não conseguiu abrir este PDF. Confira se o arquivo não está protegido por senha." }, 422)
+      console.error("anthropic bad request", mode, err.status)
+      return json({
+        error: mode === "extract"
+          ? "A IA não conseguiu abrir este PDF. Confira se o arquivo não está protegido por senha."
+          : "A IA não conseguiu processar este pedido. Tente escrever de outro jeito.",
+      }, 422)
     }
     if (err instanceof Anthropic.APIError) {
-      console.error("anthropic api error", err.status)
+      console.error("anthropic api error", mode, err.status)
       return json({ error: "A IA não respondeu agora. Tente de novo em instantes." }, 502)
     }
-    console.error("anthropic unknown error")
+    console.error("anthropic unknown error", mode)
     return json({ error: "A IA não respondeu agora. Tente de novo em instantes." }, 502)
   }
 
@@ -239,7 +286,7 @@ Deno.serve(async (req) => {
   const cost = (inputTokens * price.input + outputTokens * price.output) / 1_000_000
   await admin.from("ai_usage").insert({
     user_id: userId,
-    feature: FEATURE,
+    feature: mode === "extract" ? "extract_plan" : "edit_plan",
     model,
     input_tokens: inputTokens,
     output_tokens: outputTokens,
@@ -248,10 +295,10 @@ Deno.serve(async (req) => {
   const usage = { cost_usd: cost, month_spent_usd: spent + cost, month_limit_usd: limit }
 
   if (response.stop_reason === "refusal") {
-    return json({ error: "A IA recusou ler este arquivo.", usage }, 422)
+    return json({ error: "A IA recusou este pedido.", usage }, 422)
   }
   if (response.stop_reason === "max_tokens") {
-    return json({ error: "O plano é longo demais para ler de uma vez.", usage }, 422)
+    return json({ error: "O plano é longo demais para a IA processar de uma vez.", usage }, 422)
   }
 
   const text = response.content.find((b) => b.type === "text")
@@ -259,17 +306,17 @@ Deno.serve(async (req) => {
   try {
     plan = JSON.parse(text && text.type === "text" ? text.text : "")
   } catch {
-    console.error("invalid json from model")
+    console.error("invalid json from model", mode)
     return json({ error: "A IA devolveu uma resposta incompleta. Tente de novo.", usage }, 502)
   }
 
   // Guarda o resultado antes de responder: se a conexão do celular cair
-  // durante a espera, o app busca a leitura aqui em vez de perdê-la.
+  // durante a espera, o app busca o resultado aqui em vez de perdê-lo.
   const { data: saved } = await admin
     .from("ai_plan_extractions")
     .insert({ user_id: userId, plan, cost_usd: cost })
     .select("id")
     .single()
 
-  return json({ plan, usage, extraction_id: saved?.id ?? null })
+  return json({ plan, usage, extraction_id: saved?.id ?? null, mode })
 })

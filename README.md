@@ -115,6 +115,10 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
 - Água na tela Hoje: progresso contra a meta do plano, botões de um toque (200/500 mL e o
   volume do protocolo) e "Outro", horários do plano como guia e registros do dia com
   "Apagar" (regras testadas em `src/lib/water.test.ts`).
+- Meu plano (menu ☰): resumo do plano atual, **editar com IA** por texto livre (VIP; a IA
+  aplica só o pedido e lista o que mudou), editar à mão no mesmo editor, ou enviar um plano
+  novo. Cada salvamento cria uma versão nova (a anterior fica guardada) e as refeições já
+  marcadas hoje passam para a versão nova.
 - Cabeçalho com menu da conta: "Minha conta" (nome para a saudação, fuso horário, definir ou
   trocar senha) e "Sair".
 - Deploy automático para o GitHub Pages a cada push na `main`.

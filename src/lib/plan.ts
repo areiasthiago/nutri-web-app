@@ -10,6 +10,8 @@ export type MealItem = {
   id: string
   food: string
   qty_text: string
+  qty_value: number | null
+  qty_unit: 'g' | 'mL' | 'un' | null
   kcal: number | null
   protein_g: number | null
   carbs_g: number | null
@@ -51,7 +53,7 @@ export async function fetchActivePlan(): Promise<Plan | null> {
       `id, name, status_note, target_kcal, target_protein_g, target_carbs_g, target_fat_g,
        target_water_ml, notes,
        meals (id, name, time, position,
-         meal_items (id, food, qty_text, kcal, protein_g, carbs_g, fat_g, position,
+         meal_items (id, food, qty_text, qty_value, qty_unit, kcal, protein_g, carbs_g, fat_g, position,
            substitutions (id, text, position))),
        hydration_slots (id, time, ml, label)`,
     )
