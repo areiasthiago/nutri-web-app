@@ -80,6 +80,10 @@ describe('resumo do período, sequência e selo', () => {
     expect(s.completeDays).toBe(1)
     expect(s.waterPct).toBe(75)
     expect(s.waterGoalDays).toBe(1)
+    // Calorias no alvo: 1.500 ± 10%. Dia sem registro não conta.
+    expect(s.kcalOkDays).toBe(1)
+    const k = (date: string, kcal: number): DayStat => ({ ...day(date, 3, 0), kcal })
+    expect(summarize([k('2026-10-01', 1350), k('2026-10-02', 1651), k('2026-10-03', 1600)], '2026-10-03').kcalOkDays).toBe(2)
     // Dias antes do primeiro registro também não entram.
     expect(summarize([day('2026-10-01', 0, 0), day('2026-10-02', 3, 2000)], '2026-10-02', '2026-10-02').mealsPct).toBe(100)
   })
@@ -96,6 +100,7 @@ describe('resumo do período, sequência e selo', () => {
     expect(dayAchievement(day('2026-10-01', 3, 1000), 'hoje')?.title).toBe('Dia completo!')
     expect(dayAchievement(day('2026-10-01', 1, 2500), 'hoje')?.title).toBe('Hidratação em dia!')
     expect(dayAchievement(day('2026-10-01', 2, 1000), 'hoje')).toBeNull()
+    expect(dayAchievement(day('2026-10-01', 3, 2000), 'hoje')?.mascot).toBe('alface')
   })
 
   it('selo da semana e do mês, só quando está mandando bem', () => {
@@ -104,6 +109,7 @@ describe('resumo do período, sequência e selo', () => {
     expect(weekAchievement(week([3, 3, 3, 3, 3, 3, 3], [0, 0, 0, 0, 0, 0, 0]), 'x')?.title).toBe('Semana impecável!')
     expect(weekAchievement(week([3, 3, 3, 3, 3, 3, 2], [2000, 2000, 2000, 2000, 2000, 2000, 2000]), 'x')?.title).toBe('Semana nota 10!')
     expect(weekAchievement(week([3, 3, 3, 1, 1, 1, 1], [0, 0, 0, 0, 0, 0, 0]), 'x')?.title).toBe('Mandando bem!')
+    expect(weekAchievement(week([3, 3, 3, 1, 1, 1, 1], [0, 0, 0, 0, 0, 0, 0]), 'x')?.mascot).toBe('tomate')
     expect(weekAchievement(week([1, 1, 1, 1, 1, 1, 1], [500, 500, 500, 500, 500, 500, 500]), 'x')).toBeNull()
     // Poucos dias ainda não dão selo.
     expect(weekAchievement(summarize([day('2026-10-01', 3, 2000)], '2026-10-01'), 'x')).toBeNull()
@@ -113,5 +119,6 @@ describe('resumo do período, sequência e selo', () => {
     expect(monthAchievement(month(20, 3, 0), 'x')?.title).toBe('Mês de campeão!')
     expect(monthAchievement(month(20, 1, 2000), 'x')?.title).toBe('Mês hidratado!')
     expect(monthAchievement(month(2, 3, 2000), 'x')).toBeNull()
+    expect(monthAchievement(month(20, 3, 0), 'x')?.mascot).toBe('cenoura')
   })
 })

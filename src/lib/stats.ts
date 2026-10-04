@@ -104,6 +104,14 @@ export function aggregateDays(input: StatsInput): DayStat[] {
   })
 }
 
+/** Margem para um dia contar como "calorias no alvo": até 10% acima ou abaixo do total do plano. */
+export const KCAL_TOLERANCE = 0.1
+
+/** Dia com registro e calorias comidas a até 10% do total do plano (para cima ou para baixo). */
+export function kcalOnTarget(d: DayStat): boolean {
+  return d.hasData && !!d.kcalPlan && Math.abs(d.kcal - d.kcalPlan) <= KCAL_TOLERANCE * d.kcalPlan
+}
+
 export const pct = (part: number, whole: number | null) => (whole && whole > 0 ? (part / whole) * 100 : 0)
 
 export type PeriodSummary = {
@@ -117,6 +125,8 @@ export type PeriodSummary = {
   waterPct: number
   /** Dias em que a meta de água foi batida. */
   waterGoalDays: number
+  /** Dias com as calorias no alvo (ver kcalOnTarget). */
+  kcalOkDays: number
   /** Média de kcal comidas nos dias com registro. */
   kcalAvg: number
   offPlanMeals: number
@@ -138,6 +148,7 @@ export function summarize(days: DayStat[], today: string, since: string | null =
     completeDays: past.filter((d) => d.mealsPlanned > 0 && d.mealsDone >= d.mealsPlanned).length,
     waterPct: avg(past.map((d) => Math.min(100, pct(d.waterMl, d.waterTarget)))),
     waterGoalDays: past.filter((d) => d.waterTarget && d.waterMl >= d.waterTarget).length,
+    kcalOkDays: past.filter(kcalOnTarget).length,
     kcalAvg: avg(tracked.map((d) => d.kcal)),
     offPlanMeals: past.reduce((s, d) => s + d.mealsOffPlan, 0),
     snacks: past.reduce((s, d) => s + d.snacks, 0),
@@ -161,36 +172,35 @@ export type Achievement = { title: string; detail: string; mascot: Mascot }
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
-/** Selo do dia (tomate): só quando o dia foi bom. */
+/** Selo do dia (alface): só quando o dia foi bom. */
 export function dayAchievement(day: DayStat, when: string): Achievement | null {
   const allMeals = day.mealsPlanned > 0 && day.mealsDone >= day.mealsPlanned
   const water = !!day.waterTarget && day.waterMl >= day.waterTarget
-  if (allMeals && water) {
-    return { title: 'Dia perfeito!', detail: `Todas as ${day.mealsPlanned} refeições do plano e a meta de água ${when}.`, mascot: 'tomate' }
-  }
-  if (allMeals) return { title: 'Dia completo!', detail: `Todas as ${day.mealsPlanned} refeições do plano ${when}.`, mascot: 'tomate' }
-  if (water) return { title: 'Hidratação em dia!', detail: `Meta de água batida ${when}.`, mascot: 'tomate' }
+  const meals = day.mealsPlanned === 1 ? 'A refeição do plano' : `Todas as ${day.mealsPlanned} refeições do plano`
+  if (allMeals && water) return { title: 'Dia perfeito!', detail: `${meals} e a meta de água ${when}.`, mascot: 'alface' }
+  if (allMeals) return { title: 'Dia completo!', detail: `${meals} ${when}.`, mascot: 'alface' }
+  if (water) return { title: 'Hidratação em dia!', detail: `Meta de água batida ${when}.`, mascot: 'alface' }
   return null
 }
 
-/** Selo da semana (alface), a partir de 3 dias contados. */
+/** Selo da semana (tomate), a partir de 3 dias contados. */
 export function weekAchievement(s: PeriodSummary, when: string): Achievement | null {
   if (s.days < 3) return null
   if (s.days === 7 && s.completeDays === 7) {
-    return { title: 'Semana impecável!', detail: `Todas as refeições do plano nos 7 dias ${when}.`, mascot: 'alface' }
+    return { title: 'Semana impecável!', detail: `Todas as refeições do plano nos 7 dias ${when}.`, mascot: 'tomate' }
   }
   if (s.mealsPct >= 85 && s.waterPct >= 85) {
     return {
       title: 'Semana nota 10!',
       detail: `${Math.round(s.mealsPct)}% das refeições e ${Math.round(s.waterPct)}% da água ${when}.`,
-      mascot: 'alface',
+      mascot: 'tomate',
     }
   }
   if (s.completeDays >= 3) {
-    return { title: 'Mandando bem!', detail: `${plural(s.completeDays, 'dia', 'dias')} com todas as refeições ${when}.`, mascot: 'alface' }
+    return { title: 'Mandando bem!', detail: `${plural(s.completeDays, 'dia', 'dias')} com todas as refeições ${when}.`, mascot: 'tomate' }
   }
   if (s.waterGoalDays >= 4) {
-    return { title: 'Semana hidratada!', detail: `Meta de água batida em ${s.waterGoalDays} dias ${when}.`, mascot: 'alface' }
+    return { title: 'Semana hidratada!', detail: `Meta de água batida em ${s.waterGoalDays} dias ${when}.`, mascot: 'tomate' }
   }
   return null
 }

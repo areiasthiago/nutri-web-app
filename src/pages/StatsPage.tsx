@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BarChart } from '../components/BarChart'
 import { CongratsBadge } from '../components/CongratsBadge'
+import { StatTile } from '../components/StatTile'
+import type { StatTileData } from '../components/StatTile'
 import { fetchActivePlan, formatNumber, localDateIn } from '../lib/plan'
 import type { Plan } from '../lib/plan'
 import { useProfile } from '../lib/profile'
@@ -11,6 +13,7 @@ import {
   dateRange,
   dayAchievement,
   fetchStatsInput,
+  kcalOnTarget,
   mealStreak,
   monthAchievement,
   monthEnd,
@@ -29,6 +32,9 @@ const TABS: { key: Granularity; label: string }[] = [
   { key: 'semana', label: 'Semana' },
   { key: 'mes', label: 'Mês' },
 ]
+
+/** Quadros da semana e do mês que vão para a imagem de compartilhar (sem calorias nem quantidades). */
+const SHARED_LABELS = ['Refeições feitas', 'Meta de água', 'Calorias no alvo']
 
 const WEEKDAY_LETTERS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
 
@@ -70,21 +76,6 @@ function periodPhrase(g: Granularity, from: string, to: string, today: string): 
   if (g === 'dia') return from === today ? 'hoje' : from === addDays(today, -1) ? 'ontem' : `em ${ddmm(from)}`
   if (g === 'semana') return from === weekStart(today) ? 'nesta semana' : `na semana de ${ddmm(from)} a ${ddmm(to)}`
   return from === monthStart(today) ? 'neste mês' : `em ${fmt(from, { month: 'long', year: 'numeric' })}`
-}
-
-function Tile({ label, value, sub, meter, color }: { label: string; value: string; sub?: string; meter?: number; color?: string }) {
-  return (
-    <div className="stat-tile">
-      <span className="stat-label">{label}</span>
-      <span className="stat-value">{value}</span>
-      {sub && <span className="stat-sub">{sub}</span>}
-      {meter !== undefined && (
-        <span className="stat-meter" aria-hidden="true">
-          <span style={{ width: `${Math.min(100, meter)}%`, background: color }} />
-        </span>
-      )}
-    </div>
-  )
 }
 
 export function StatsPage() {
@@ -151,6 +142,66 @@ export function StatsPage() {
         : monthAchievement(summary, when)
   const waterTarget = plan?.target_water_ml ?? null
   const kcalPlan = days[0]?.kcalPlan ?? null
+  const tiles: StatTileData[] = !ready ? [] : granularity === 'dia' ? dayTiles(days[0]) : [
+    {
+      label: 'Refeições feitas',
+      value: `${round(summary.mealsPct)}%`,
+      sub: `${summary.completeDays} de ${summary.days} ${summary.days === 1 ? 'dia completo' : 'dias completos'}`,
+      meter: summary.mealsPct,
+      series: 'meals',
+    },
+    {
+      label: 'Meta de água',
+      value: waterTarget ? `${round(summary.waterPct)}%` : '—',
+      sub: waterTarget ? `batida em ${summary.waterGoalDays} de ${summary.days} ${summary.days === 1 ? 'dia' : 'dias'}` : 'plano sem meta de água',
+      meter: waterTarget ? summary.waterPct : undefined,
+      series: 'water',
+    },
+    {
+      label: 'Média comida por dia',
+      value: summary.daysTracked ? `${round(summary.kcalAvg)} kcal` : '—',
+      sub: kcalPlan ? `total do plano: ${round(kcalPlan)} kcal` : undefined,
+    },
+    {
+      label: 'Calorias no alvo',
+      value: kcalPlan ? `${summary.kcalOkDays} de ${summary.days}` : '—',
+      sub: kcalPlan ? (summary.days === 1 ? 'dia no alvo' : 'dias no alvo') : 'plano sem total de calorias',
+      meter: kcalPlan ? pct(summary.kcalOkDays, summary.days) : undefined,
+      series: 'meals',
+    },
+    { label: 'Sequência', value: `${streak} ${streak === 1 ? 'dia' : 'dias'}`, sub: 'seguidos com todas as refeições' },
+    {
+      label: 'Fora do plano',
+      value: `${summary.offPlanMeals} ${summary.offPlanMeals === 1 ? 'refeição' : 'refeições'}`,
+      sub: `e ${summary.snacks} fora de hora`,
+    },
+  ]
+  // Na imagem de compartilhar, só porcentagens (sem calorias nem quantidades).
+  const shareTiles: StatTileData[] = !ready
+    ? []
+    : granularity === 'dia'
+      ? [
+          {
+            label: 'Refeições feitas',
+            value: `${round(pct(days[0].mealsDone, days[0].mealsPlanned))}%`,
+            sub: `${days[0].mealsDone} de ${days[0].mealsPlanned} ${days[0].mealsPlanned === 1 ? 'refeição' : 'refeições'} do plano`,
+            meter: pct(days[0].mealsDone, days[0].mealsPlanned),
+            series: 'meals',
+          },
+          ...(waterTarget
+            ? [{ label: 'Meta de água', value: `${round(pct(days[0].waterMl, waterTarget))}%`, sub: 'da meta do dia', meter: pct(days[0].waterMl, waterTarget), series: 'water' as const }]
+            : []),
+          ...(kcalPlan && days[0].hasData
+            ? [{
+                label: 'Calorias',
+                value: `${round(pct(days[0].kcal, kcalPlan))}%`,
+                sub: kcalOnTarget(days[0]) ? 'do plano, no alvo' : 'do total do plano',
+                meter: pct(days[0].kcal, kcalPlan),
+                series: 'meals' as const,
+              }]
+            : []),
+        ]
+      : tiles.filter((t) => SHARED_LABELS.includes(t.label) && t.value !== '—')
 
   return (
     <div className="page stats-page">
@@ -194,44 +245,18 @@ export function StatsPage() {
         <p className="centered-message">Carregando…</p>
       ) : (
         <>
-          {badge && <CongratsBadge achievement={badge} />}
+          {badge && <CongratsBadge achievement={badge} tiles={shareTiles} />}
 
           {granularity === 'dia' ? (
-            <DayView day={days[0]} />
+            <div className="stat-grid">
+              {tiles.map((t) => <StatTile key={t.label} {...t} />)}
+            </div>
           ) : summary.days === 0 ? (
             <p className="page-lead">Nenhum registro neste período.</p>
           ) : (
             <>
               <div className="stat-grid">
-                <Tile
-                  label="Refeições feitas"
-                  value={`${round(summary.mealsPct)}%`}
-                  sub={`${summary.completeDays} de ${summary.days} ${summary.days === 1 ? 'dia completo' : 'dias completos'}`}
-                  meter={summary.mealsPct}
-                  color="var(--chart-meals)"
-                />
-                <Tile
-                  label="Meta de água"
-                  value={waterTarget ? `${round(summary.waterPct)}%` : '—'}
-                  sub={waterTarget ? `batida em ${summary.waterGoalDays} de ${summary.days} ${summary.days === 1 ? 'dia' : 'dias'}` : 'plano sem meta de água'}
-                  meter={waterTarget ? summary.waterPct : undefined}
-                  color="var(--chart-water)"
-                />
-                <Tile
-                  label="Média comida por dia"
-                  value={summary.daysTracked ? `${round(summary.kcalAvg)} kcal` : '—'}
-                  sub={kcalPlan ? `total do plano: ${round(kcalPlan)} kcal` : undefined}
-                />
-                <Tile
-                  label="Sequência"
-                  value={`${streak} ${streak === 1 ? 'dia' : 'dias'}`}
-                  sub="seguidos com todas as refeições"
-                />
-                <Tile
-                  label="Fora do plano"
-                  value={`${summary.offPlanMeals} ${summary.offPlanMeals === 1 ? 'refeição' : 'refeições'}`}
-                  sub={`e ${summary.snacks} fora de hora`}
-                />
+                {tiles.map((t) => <StatTile key={t.label} {...t} />)}
               </div>
 
               <section className="info-card chart-card">
@@ -286,7 +311,9 @@ export function StatsPage() {
                     return `${dayLabel(d.date)}: ${formatNumber(Math.round(d.kcal))} kcal${d.snacks ? ` (com ${d.snacks} fora de hora)` : ''}`
                   }}
                 />
-                <p className="muted">Soma das refeições marcadas e do que foi comido fora de hora.</p>
+                <p className="muted">
+                  Soma das refeições marcadas e do que foi comido fora de hora. "No alvo": até 10% acima ou abaixo do total do plano.
+                </p>
               </section>
             </>
           )}
@@ -313,37 +340,29 @@ function ticksFor(g: Granularity, days: DayStat[], today: string): string[] {
   })
 }
 
-function DayView({ day }: { day: DayStat }) {
+function dayTiles(day: DayStat): StatTileData[] {
   const mealsPct = pct(day.mealsDone, day.mealsPlanned)
   const waterPct = pct(day.waterMl, day.waterTarget)
-  return (
-    <div className="stat-grid">
-      <Tile
-        label="Refeições feitas"
-        value={`${day.mealsDone} de ${day.mealsPlanned}`}
-        sub={`${round(mealsPct)}% do plano`}
-        meter={mealsPct}
-        color="var(--chart-meals)"
-      />
-      <Tile
-        label="Água"
-        value={`${formatNumber(day.waterMl)} mL`}
-        sub={day.waterTarget ? `${round(waterPct)}% da meta de ${formatNumber(day.waterTarget)} mL` : undefined}
-        meter={day.waterTarget ? waterPct : undefined}
-        color="var(--chart-water)"
-      />
-      <Tile
-        label="Comido no dia"
-        value={`${formatNumber(Math.round(day.kcal))} kcal`}
-        sub={day.kcalPlan ? `de ${formatNumber(Math.round(day.kcalPlan))} kcal do plano` : undefined}
-        meter={day.kcalPlan ? pct(day.kcal, day.kcalPlan) : undefined}
-        color="var(--chart-meals)"
-      />
-      <Tile
-        label="Fora do plano"
-        value={`${day.mealsOffPlan} ${day.mealsOffPlan === 1 ? 'refeição' : 'refeições'}`}
-        sub={`e ${day.snacks} fora de hora`}
-      />
-    </div>
-  )
+  return [
+    { label: 'Refeições feitas', value: `${day.mealsDone} de ${day.mealsPlanned}`, sub: `${round(mealsPct)}% do plano`, meter: mealsPct, series: 'meals' },
+    {
+      label: 'Água',
+      value: `${formatNumber(day.waterMl)} mL`,
+      sub: day.waterTarget ? `${round(waterPct)}% da meta de ${formatNumber(day.waterTarget)} mL` : undefined,
+      meter: day.waterTarget ? waterPct : undefined,
+      series: 'water',
+    },
+    {
+      label: 'Comido no dia',
+      value: `${formatNumber(Math.round(day.kcal))} kcal`,
+      sub: day.kcalPlan ? `de ${formatNumber(Math.round(day.kcalPlan))} kcal do plano` : undefined,
+      meter: day.kcalPlan ? pct(day.kcal, day.kcalPlan) : undefined,
+      series: 'meals',
+    },
+    {
+      label: 'Fora do plano',
+      value: `${day.mealsOffPlan} ${day.mealsOffPlan === 1 ? 'refeição' : 'refeições'}`,
+      sub: `e ${day.snacks} fora de hora`,
+    },
+  ]
 }
