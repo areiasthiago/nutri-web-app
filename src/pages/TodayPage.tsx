@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import type { MouseEvent } from 'react'
 import { Link } from 'react-router-dom'
+import { OffPlanSheet } from '../components/OffPlanSheet'
 import { WaterCard } from '../components/WaterCard'
-import { fetchMealLogs, markMealDone, unmarkMeal, updateSwaps } from '../lib/mealLogs'
-import type { MealLog, Swap } from '../lib/mealLogs'
+import { fetchAiAccess } from '../lib/ai'
+import type { AiAccess } from '../lib/ai'
+import { consumedTotals, fetchMealLogs, isOffPlan, markMealDone, markMealOffPlan, unmarkMeal, updateSwaps } from '../lib/mealLogs'
+import type { MealLog, OffPlanFood, Swap } from '../lib/mealLogs'
 import {
   CURRENT_MEAL_WINDOW_MIN,
   fetchActivePlan,
@@ -62,11 +65,13 @@ type MealCardProps = {
   busy: boolean
   onToggle: () => void
   onSwapChange: (swaps: Swap[]) => void
+  onOffPlan: () => void
 }
 
-function MealCard({ meal, badge, late, log, draftSwaps, busy, onToggle, onSwapChange }: MealCardProps) {
+function MealCard({ meal, badge, late, log, draftSwaps, busy, onToggle, onSwapChange, onOffPlan }: MealCardProps) {
   const totals = sumItems(meal.meal_items)
   const done = !!log
+  const offPlan = isOffPlan(log)
   const swaps = log?.swaps ?? draftSwaps
   const swapFor = (itemId: string) => swaps.find((sw) => sw.item_id === itemId)?.substitution ?? ''
 
@@ -100,13 +105,25 @@ function MealCard({ meal, badge, late, log, draftSwaps, busy, onToggle, onSwapCh
         <span className="meal-time">{formatTime(meal.time)}</span>
         <span className="meal-name">
           {meal.name}
-          {done && <span className="meal-badge meal-badge-done">Feita às {doneTime(log.done_at)}</span>}
+          {done && !offPlan && <span className="meal-badge meal-badge-done">Feita às {doneTime(log.done_at)}</span>}
+          {offPlan && <span className="meal-badge meal-badge-offplan">Fora do plano · {doneTime(log!.done_at)}</span>}
           {!done && badge && <span className="meal-badge">{badge}</span>}
           {!done && !badge && late && <span className="meal-badge meal-badge-late">Não marcada</span>}
         </span>
-        <span className="meal-kcal">{formatNumber(totals.kcal)} kcal</span>
+        <span className="meal-kcal">
+          {offPlan ? (log!.actual_kcal !== null ? `${formatNumber(log!.actual_kcal)} kcal` : '') : `${formatNumber(totals.kcal)} kcal`}
+        </span>
       </summary>
-      <ul className="meal-items">
+      {offPlan && (
+        <div className="meal-offplan">
+          <p>
+            Você comeu: <strong>{log!.actual_name}</strong>
+            {log!.actual_kcal !== null && ` · ${formatNumber(log!.actual_kcal)} kcal`}
+          </p>
+          <p className="muted">No lugar do que o plano previa:</p>
+        </div>
+      )}
+      <ul className={`meal-items${offPlan ? ' meal-items-replaced' : ''}`}>
         {meal.meal_items.map((item) => {
           const chosen = swapFor(item.id)
           return (
@@ -132,6 +149,9 @@ function MealCard({ meal, badge, late, log, draftSwaps, busy, onToggle, onSwapCh
           )
         })}
       </ul>
+      <button type="button" className="btn-link meal-offplan-link" onClick={onOffPlan} disabled={busy}>
+        {offPlan ? 'Trocar o que comi' : 'Comi outra coisa'}
+      </button>
     </details>
   )
 }
@@ -201,6 +221,16 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
   const [draftSwaps, setDraftSwaps] = useState<Record<string, Swap[]>>({})
   const [busyMeal, setBusyMeal] = useState<string | null>(null)
   const [logError, setLogError] = useState<string | null>(null)
+  const [offPlanMeal, setOffPlanMeal] = useState<Meal | null>(null)
+  const [aiAccess, setAiAccess] = useState<AiAccess | null>(null)
+
+  useEffect(() => {
+    let active = true
+    fetchAiAccess().then((a) => active && setAiAccess(a))
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -260,8 +290,21 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
     }
   }
 
+  async function confirmOffPlan(meal: Meal, food: OffPlanFood): Promise<boolean> {
+    setLogError(null)
+    try {
+      const log = await markMealOffPlan(meal, date, food)
+      setLog(meal.id, log)
+      return true
+    } catch {
+      setLogError('Não foi possível salvar agora. Confira a internet e tente de novo.')
+      return false
+    }
+  }
+
   const highlighted = highlightedMealIndex(plan.meals, now, doneIds)
   const dayTotals = sumItems(plan.meals.flatMap((m) => m.meal_items))
+  const consumed = consumedTotals(plan.meals, byMeal)
 
   function badgeFor(index: number): string | null {
     if (index !== highlighted) return null
@@ -313,6 +356,7 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
             busy={busyMeal === meal.id || !logs}
             onToggle={() => toggleMeal(meal)}
             onSwapChange={(swaps) => changeSwaps(meal, swaps)}
+            onOffPlan={() => setOffPlanMeal(meal)}
           />
         ))}
       </section>
@@ -321,8 +365,28 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
         <WaterCard targetMl={plan.target_water_ml} slots={plan.hydration_slots} date={date} nowMinutes={now} />
       )}
 
+      {offPlanMeal && (
+        <OffPlanSheet
+          mealName={offPlanMeal.name}
+          access={aiAccess}
+          onAccessChange={setAiAccess}
+          onClose={() => setOffPlanMeal(null)}
+          onConfirm={(food) => confirmOffPlan(offPlanMeal, food)}
+        />
+      )}
+
       <section className="info-card">
         <h2>Resumo do plano</h2>
+        {doneCount > 0 && (
+          <p>
+            <span className="muted">Comido hoje (refeições marcadas):</span>
+            <br />
+            <MacroLine totals={consumed} />
+            {plan.target_kcal !== null && (
+              <span className="muted"> · {Math.round((consumed.kcal / plan.target_kcal) * 100)}% da meta</span>
+            )}
+          </p>
+        )}
         <p>
           <span className="muted">Soma das refeições:</span>
           <br />

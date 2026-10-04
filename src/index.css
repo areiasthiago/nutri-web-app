@@ -1249,3 +1249,107 @@ input {
   margin: 0;
   line-height: 0;
 }
+
+/* Refeição fora do plano */
+
+.meal-badge-offplan {
+  background: var(--attention-bg);
+  color: var(--attention-text);
+}
+
+.meal-offplan {
+  padding: 10px 14px 0;
+  border-top: 1px solid var(--border);
+}
+
+.meal-offplan p {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.meal-offplan p.muted {
+  font-size: 13px;
+}
+
+.meal-items-replaced {
+  border-top: none;
+  padding-top: 4px;
+  opacity: 0.6;
+}
+
+.meal-items-replaced .meal-item-swap {
+  display: none;
+}
+
+.meal-offplan-link {
+  display: block;
+  margin: -4px 8px 6px;
+  font-size: 14px;
+}
+
+.offplan-sheet {
+  max-height: 90svh;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.offplan-sheet h2 {
+  text-align: center;
+}
+
+.offplan-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  resize: none;
+}
+
+.offplan-library ul {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.offplan-choice {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.offplan-choice small {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.offplan-picked p {
+  margin: 0 0 8px;
+}
+
+.offplan-picked,
+.offplan-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.offplan-form .banner p {
+  margin: 0;
+}

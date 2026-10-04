@@ -1,9 +1,11 @@
-// IA do plano alimentar (Claude), em dois modos:
+// IA do plano alimentar (Claude), em três modos:
 //   - "extract" (padrão): lê o PDF do plano e devolve o plano estruturado;
 //   - "edit": aplica ao plano atual um pedido em texto livre ("atrase o
 //     jantar em uma hora") e devolve o plano inteiro já alterado + a lista
-//     do que mudou.
-// Nos dois casos o resultado vai para a tela de revisão; o plano em si só é
+//     do que mudou;
+//   - "estimate": estima calorias e macros de algo comido fora do plano
+//     ("pipoca de panela, 1 tigela média"), para a pessoa registrar a refeição.
+// Nos modos de plano (extract/edit) o resultado vai para a tela de revisão; o plano em si só é
 // salvo depois que a pessoa confirma. Aqui fica guardado apenas o resultado
 // (ai_plan_extractions), para não se perder se a conexão do celular cair.
 //
@@ -24,6 +26,7 @@ import { createClient } from "npm:@supabase/supabase-js@2"
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024
 const MAX_INSTRUCTION_CHARS = 1000
+const MAX_DESCRIPTION_CHARS = 300
 
 // US$ por milhão de tokens (entrada, saída). Tokens de raciocínio contam como saída.
 const PRICES: Record<string, { input: number; output: number }> = {
@@ -131,6 +134,31 @@ const EDIT_SCHEMA = {
   properties: { ...PLAN_PROPERTIES, changes: stringList },
 }
 
+const ESTIMATE_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "description", "kcal", "protein_g", "carbs_g", "fat_g", "notes"],
+  properties: {
+    name: { type: "string" },
+    description: { type: "string" },
+    kcal: { type: "number" },
+    protein_g: { type: "number" },
+    carbs_g: { type: "number" },
+    fat_g: { type: "number" },
+    notes: stringList,
+  },
+}
+
+const ESTIMATE_SYSTEM = `Você estima o valor nutricional de algo que uma pessoa já comeu, para ela registrar no app que acompanha o plano alimentar dela.
+
+Regras:
+- Estime calorias (kcal) e macros (proteína, carboidrato e gordura, em gramas) da porção descrita, com base em valores típicos de tabelas brasileiras de composição de alimentos (como a TACO).
+- Se a quantidade não for dita, assuma uma porção comum e diga qual em "notes" (ex.: "Considerei 1 tigela média, cerca de 30 g de milho").
+- "name": nome curto do alimento ou prato, com inicial maiúscula (ex.: "Pipoca de panela"). "description": a porção considerada (ex.: "1 tigela média, com manteiga").
+- Números arredondados (kcal inteiro, macros com no máximo 1 casa decimal).
+- Não julgue a escolha, não dê conselhos nem sugira compensar em outras refeições.
+- Se o texto não descrever comida, devolva zeros e explique em "notes".`
+
 const EXTRACT_SYSTEM = `Você transcreve planos alimentares em PDF, feitos por nutricionistas brasileiros, para um formato estruturado. O resultado vai para uma tela de revisão em que a própria pessoa confere e corrige tudo antes de salvar.
 
 Regras:
@@ -159,7 +187,7 @@ Regras:
 - "warnings": dúvidas ou partes do pedido que não foram aplicadas, em frases curtas. Lista vazia se nada.
 - Não inclua nomes de pessoas em nenhum campo.`
 
-type Mode = "extract" | "edit"
+type Mode = "extract" | "edit" | "estimate"
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS })
@@ -206,14 +234,15 @@ Deno.serve(async (req) => {
     return json({ error: "Você atingiu o limite de uso da IA deste mês." }, 429)
   }
 
-  // Corpo: { pdf_base64 } (extract) ou { mode: "edit", plan, instruction }.
+  // Corpo: { pdf_base64 } (extract), { mode: "edit", plan, instruction } ou
+  // { mode: "estimate", description }.
   let body: Record<string, unknown>
   try {
     body = await req.json()
   } catch {
     return json({ error: "Envio inválido." }, 400)
   }
-  const mode: Mode = body?.mode === "edit" ? "edit" : "extract"
+  const mode: Mode = body?.mode === "edit" ? "edit" : body?.mode === "estimate" ? "estimate" : "extract"
 
   let content: Anthropic.ContentBlockParam[]
   if (mode === "extract") {
@@ -224,6 +253,16 @@ Deno.serve(async (req) => {
       { type: "document", source: { type: "base64", media_type: "application/pdf", data: pdfBase64 } },
       { type: "text", text: "Transcreva este plano alimentar no formato pedido." },
     ]
+  } else if (mode === "estimate") {
+    const description = String(body?.description ?? "").trim()
+    if (!description) return json({ error: "Descreva o que você comeu." }, 400)
+    if (description.length > MAX_DESCRIPTION_CHARS) {
+      return json({ error: `A descrição passa de ${MAX_DESCRIPTION_CHARS} caracteres.` }, 400)
+    }
+    content = [{ type: "text", text: `O que a pessoa comeu:
+<comida>
+${description}
+</comida>` }]
   } else {
     const instruction = String(body?.instruction ?? "").trim()
     if (!instruction) return json({ error: "Escreva o que você quer mudar no plano." }, 400)
@@ -241,7 +280,7 @@ Deno.serve(async (req) => {
     ]
   }
 
-  const schema = mode === "extract" ? EXTRACT_SCHEMA : EDIT_SCHEMA
+  const schema = mode === "extract" ? EXTRACT_SCHEMA : mode === "edit" ? EDIT_SCHEMA : ESTIMATE_SCHEMA
   // O Haiku 4.5 não aceita "effort".
   const outputConfig = model.startsWith("claude-haiku")
     ? { format: { type: "json_schema", schema } }
@@ -253,7 +292,7 @@ Deno.serve(async (req) => {
     response = await client.messages.create({
       model,
       max_tokens: 16000,
-      system: mode === "extract" ? EXTRACT_SYSTEM : EDIT_SYSTEM,
+      system: mode === "extract" ? EXTRACT_SYSTEM : mode === "edit" ? EDIT_SYSTEM : ESTIMATE_SYSTEM,
       output_config: outputConfig,
       messages: [{ role: "user", content }],
     } as Anthropic.MessageCreateParamsNonStreaming)
@@ -286,7 +325,7 @@ Deno.serve(async (req) => {
   const cost = (inputTokens * price.input + outputTokens * price.output) / 1_000_000
   await admin.from("ai_usage").insert({
     user_id: userId,
-    feature: mode === "extract" ? "extract_plan" : "edit_plan",
+    feature: mode === "extract" ? "extract_plan" : mode === "edit" ? "edit_plan" : "estimate_meal",
     model,
     input_tokens: inputTokens,
     output_tokens: outputTokens,
@@ -309,6 +348,9 @@ Deno.serve(async (req) => {
     console.error("invalid json from model", mode)
     return json({ error: "A IA devolveu uma resposta incompleta. Tente de novo.", usage }, 502)
   }
+
+  // Estimativa é rápida e pequena: volta direto, sem guardar.
+  if (mode === "estimate") return json({ estimate: plan, usage, mode })
 
   // Guarda o resultado antes de responder: se a conexão do celular cair
   // durante a espera, o app busca o resultado aqui em vez de perdê-lo.

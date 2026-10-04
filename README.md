@@ -114,6 +114,9 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
 - Marcar refeição como feita com um toque na tela Hoje (e desmarcar), indicando a troca usada
   em cada alimento; contador "X de N feitas"; o destaque pula as refeições já feitas. O dia
   é o do fuso do usuário (testes em `src/lib/plan.test.ts`).
+- "Comi outra coisa" em cada refeição: escolhe da lista pessoal "Já comi antes" (sem IA),
+  estima calorias e macros com IA (VIP) ou digita à mão; o que é novo entra na lista. O
+  resumo do dia mostra o que foi comido nas refeições marcadas (plano + fora do plano).
 - Água na tela Hoje: progresso contra a meta do plano, botões de um toque (200/500 mL e o
   volume do protocolo) e "Outro", horários do plano como guia e registros do dia com
   "Apagar" (regras testadas em `src/lib/water.test.ts`).

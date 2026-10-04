@@ -124,6 +124,38 @@ export async function deleteExtraction(id: string): Promise<void> {
 }
 
 /** Quanto de uma cota de US$ `limit` o valor `usd` representa, em % inteiro (mínimo 1% se > 0). */
+export type MealEstimate = {
+  name: string
+  description: string
+  kcal: number
+  protein_g: number
+  carbs_g: number
+  fat_g: number
+  notes: string[]
+}
+
+/** Custo típico de uma estimativa de refeição fora do plano. */
+export const AI_ESTIMATE_ESTIMATE_USD = 0.005
+
+/** Estima calorias e macros de algo comido fora do plano ("pipoca, 1 tigela média"). */
+export async function estimateMealWithAi(
+  description: string,
+): Promise<{ ok: true; estimate: MealEstimate; costUsd: number } | { ok: false; error: string }> {
+  const { data, error } = await client.functions.invoke('ai-extract-plan', { body: { mode: 'estimate', description } })
+  if (error) {
+    if (error instanceof FunctionsHttpError) {
+      try {
+        const body = await error.context.json()
+        if (body?.error) return { ok: false, error: String(body.error) }
+      } catch {
+        // corpo sem JSON: cai na mensagem genérica
+      }
+    }
+    return { ok: false, error: 'Não foi possível falar com a IA agora. Confira a internet e tente de novo.' }
+  }
+  return { ok: true, estimate: data.estimate as MealEstimate, costUsd: Number(data.usage?.cost_usd ?? 0) }
+}
+
 export function quotaPercent(usd: number, limit: number): number {
   if (usd <= 0) return 0
   if (limit <= 0) return 100
