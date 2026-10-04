@@ -3,15 +3,19 @@ import { Link } from 'react-router-dom'
 import { localDateIn } from '../lib/plan'
 import { useProfile } from '../lib/profile'
 import { SHOPPING_DAYS, buildShoppingList, defaultYield, foodKey, formatAmount, itemKey, ruleIngredients, weekStartFor } from '../lib/shopping'
-import type { Ingredient, ItemSource, ShoppingInput, ShoppingLine, Unit } from '../lib/shopping'
+import type { Ingredient, ItemSource, ShoppingInput, ShoppingLine, UnquantifiedLine, Unit } from '../lib/shopping'
+import { SECTIONS, defaultSection } from '../lib/marketSections'
+import type { SectionKey } from '../lib/marketSections'
 import {
   canUseAi,
   clearChecks,
   fetchChecks,
+  fetchSections,
   fetchShoppingInput,
   fillIngredientsWithAi,
   itemsWithoutIngredients,
   saveManualIngredients,
+  saveSection,
   saveYield,
   setChecked,
 } from '../lib/shoppingData'
@@ -39,6 +43,18 @@ export function ShoppingPage() {
   const [error, setError] = useState<string | null>(null)
   // IA (só VIP): separando ingredientes dos itens que ainda não têm.
   const [aiState, setAiState] = useState<'idle' | 'running' | 'failed'>('idle')
+  // Seção do mercado escolhida pela pessoa (sobrepõe a deduzida pelo nome).
+  const [sections, setSections] = useState<Map<string, SectionKey>>(new Map())
+
+  useEffect(() => {
+    let active = true
+    fetchSections()
+      .then((m) => active && setSections(m))
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [])
 
   const today = localDateIn(profile.timezone)
   const weekStart = weekStartFor(today, profile.shopping_day)
@@ -132,11 +148,39 @@ export function ShoppingPage() {
     })
   }
 
-  const empty = list && list.lines.length === 0 && list.unquantified.length === 0
-  const total = list ? list.lines.length + list.unquantified.length : 0
-  const done = list && checks ? [...list.lines.map((l) => l.key), ...list.unquantified.map((u) => `q|${u.key}`)].filter((k) => checks.has(k)).length : 0
-  const sortChecked = <T extends { key: string }>(xs: T[], prefix = '') =>
-    [...xs].sort((a, b) => Number(checks?.has(prefix + a.key) ?? false) - Number(checks?.has(prefix + b.key) ?? false))
+  async function changeSection(name: string, section: SectionKey) {
+    const key = foodKey(name)
+    const next = new Map(sections)
+    next.set(key, section)
+    setSections(next)
+    try {
+      await saveSection(key, section === defaultSection(name) ? null : section)
+    } catch {
+      setError('Não foi possível salvar a seção agora.')
+    }
+  }
+
+  const sectionOf = (name: string) => sections.get(foodKey(name)) ?? defaultSection(name)
+
+  // Linhas com quantidade e sem quantidade juntas, por seção do mercado.
+  type Row = { key: string; name: string; section: SectionKey } & ({ line: ShoppingLine } | { free: UnquantifiedLine })
+  const rows: Row[] = list
+    ? [
+        ...list.lines.map((line) => ({ key: line.key, name: line.name, section: sectionOf(line.name), line })),
+        ...list.unquantified.map((free) => ({ key: `q|${free.key}`, name: free.name, section: sectionOf(free.name), free })),
+      ]
+    : []
+  const isChecked = (key: string) => checks?.has(key) ?? false
+  const empty = list && rows.length === 0
+  const total = rows.length
+  const done = rows.filter((r) => isChecked(r.key)).length
+  const groups = SECTIONS.map((sec) => ({
+    ...sec,
+    rows: rows
+      .filter((r) => r.section === sec.key)
+      // Marcados descem; o resto em ordem alfabética.
+      .sort((a, b) => Number(isChecked(a.key)) - Number(isChecked(b.key)) || a.name.localeCompare(b.name, 'pt-BR')),
+  })).filter((g) => g.rows.length > 0)
 
   return (
     <div className="page shopping-page">
@@ -192,73 +236,67 @@ export function ShoppingPage() {
             {done} de {total} {total === 1 ? 'item comprado' : 'itens comprados'}
           </p>
 
-          <ul className="info-card shopping-list">
-            {sortChecked(list.lines).map((line) => {
-              const checked = checks.has(line.key)
-              const isOpen = open === line.key
-              return (
-                <li key={line.key} className={`shopping-item${checked ? ' is-checked' : ''}`}>
-                  <div className="shopping-row">
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggle(line.key)}
-                      aria-label={`Comprado: ${line.name}`}
-                    />
-                    <button type="button" className="shopping-name" onClick={() => setOpen(isOpen ? null : line.key)} aria-expanded={isOpen}>
-                      <span>{line.name}</span>
-                      <span className="shopping-amount">
-                        {formatAmount(line.total, line.unit)}
-                        {line.plusUnquantified.length > 0 && ' +'}
-                      </span>
-                    </button>
-                  </div>
-                  {isOpen && (
-                    <LineDetails
-                      line={line}
-                      onYield={(v) => changeYield(line, v)}
-                      ingredientsOf={currentIngredients}
-                      onSaveIngredients={saveIngredients}
-                    />
-                  )}
-                </li>
-              )
-            })}
-          </ul>
-
-          {list.unquantified.length > 0 && (
-            <section className="shopping-unquantified">
-              <h2>Sem quantidade no plano</h2>
-              <p className="muted">Itens como "à vontade" ou "1 colher": decida quanto comprar.</p>
-              <ul className="info-card shopping-list">
-                {sortChecked(list.unquantified, 'q|').map((u) => {
-                  const key = `q|${u.key}`
-                  const checked = checks.has(key)
-                  const isOpen = open === key
-                  return (
-                    <li key={key} className={`shopping-item${checked ? ' is-checked' : ''}`}>
-                      <div className="shopping-row">
-                        <input type="checkbox" checked={checked} onChange={() => toggle(key)} aria-label={`Comprado: ${u.name}`} />
-                        <button type="button" className="shopping-name" onClick={() => setOpen(isOpen ? null : key)} aria-expanded={isOpen}>
-                          <span>{u.name}</span>
-                          <span className="shopping-who">{u.who.join(', ')}</span>
-                        </button>
-                      </div>
-                      {isOpen && (
-                        <div className="shopping-details">
-                          <Sources sources={u.sources} ingredientsOf={currentIngredients} onSave={saveIngredients} />
+          {groups.map((g) => {
+            const groupDone = g.rows.filter((r) => isChecked(r.key)).length
+            return (
+              <section key={g.key} className="shopping-section" aria-label={g.label}>
+                <h2 className={groupDone === g.rows.length ? 'is-done' : ''}>
+                  <span>{g.label}</span>
+                  <span className="shopping-section-count">
+                    {groupDone} de {g.rows.length}
+                  </span>
+                </h2>
+                <ul className="info-card shopping-list">
+                  {g.rows.map((r) => {
+                    const checked = isChecked(r.key)
+                    const isOpen = open === r.key
+                    return (
+                      <li key={r.key} className={`shopping-item${checked ? ' is-checked' : ''}`}>
+                        <div className="shopping-row">
+                          <input type="checkbox" checked={checked} onChange={() => toggle(r.key)} aria-label={`Comprado: ${r.name}`} />
+                          <button type="button" className="shopping-name" onClick={() => setOpen(isOpen ? null : r.key)} aria-expanded={isOpen}>
+                            <span>{r.name}</span>
+                            {'line' in r ? (
+                              <span className="shopping-amount">
+                                {formatAmount(r.line.total, r.line.unit)}
+                                {r.line.plusUnquantified.length > 0 && ' +'}
+                              </span>
+                            ) : (
+                              <span className="shopping-who">sem qtd.</span>
+                            )}
+                          </button>
                         </div>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-            </section>
-          )}
+                        {isOpen &&
+                          ('line' in r ? (
+                            <LineDetails
+                              line={r.line}
+                              onYield={(v) => changeYield(r.line, v)}
+                              ingredientsOf={currentIngredients}
+                              onSaveIngredients={saveIngredients}
+                              section={r.section}
+                              onSection={(sec) => changeSection(r.name, sec)}
+                            />
+                          ) : (
+                            <div className="shopping-details">
+                              <p className="muted shopping-plus">
+                                Sem quantidade no plano ({r.free.who.join(', ')}): decida quanto comprar.
+                              </p>
+                              <Sources sources={r.free.sources} ingredientsOf={currentIngredients} onSave={saveIngredients} />
+                              <SectionPicker value={r.section} onChange={(sec) => changeSection(r.name, sec)} />
+                            </div>
+                          ))}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
+            )
+          })}
 
           <p className="muted shopping-note">
-            Estimativa para a compra, em alimento cru. Toque num item para ver quanto vem de cada pessoa, de quais itens
-            do plano ele sai e ajustar os ingredientes. As trocas do plano não entram: a lista usa o alimento principal.
+            Estimativa para a compra, em alimento cru, organizada pelas seções do mercado. Toque num item para ver quanto
+            vem de cada pessoa, de quais itens do plano ele sai, ajustar os ingredientes ou mudar a seção. As trocas do
+            plano não entram: a lista usa o alimento principal.
           </p>
           <button type="button" className="btn btn-outline-neutral" onClick={restart} disabled={done === 0}>
             Desmarcar tudo
@@ -266,6 +304,22 @@ export function ShoppingPage() {
         </>
       )}
     </div>
+  )
+}
+
+/** Seção do mercado de um item (a escolha fica guardada). */
+function SectionPicker({ value, onChange }: { value: SectionKey; onChange: (section: SectionKey) => void }) {
+  return (
+    <label className="shopping-section-picker">
+      <span>Seção do mercado</span>
+      <select value={value} onChange={(e) => onChange(e.target.value as SectionKey)}>
+        {SECTIONS.map((sec) => (
+          <option key={sec.key} value={sec.key}>
+            {sec.label}
+          </option>
+        ))}
+      </select>
+    </label>
   )
 }
 
@@ -279,7 +333,14 @@ function LineDetails({
   onYield,
   ingredientsOf,
   onSaveIngredients,
-}: { line: ShoppingLine; onYield: (value: number | null) => Promise<void> } & IngredientProps) {
+  section,
+  onSection,
+}: {
+  line: ShoppingLine
+  onYield: (value: number | null) => Promise<void>
+  section: SectionKey
+  onSection: (section: SectionKey) => void
+} & IngredientProps) {
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(yieldLabel(line.yield))
   const [error, setError] = useState(false)
@@ -310,6 +371,7 @@ function LineDetails({
         </p>
       )}
       {line.sources.length > 0 && <Sources sources={line.sources} ingredientsOf={ingredientsOf} onSave={onSaveIngredients} />}
+      <SectionPicker value={section} onChange={onSection} />
       {line.cooked && (
         <div className="shopping-yield">
           {editing ? (

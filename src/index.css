@@ -2407,7 +2407,7 @@ body.with-bottom-nav .editor-actions {
 }
 
 .shopping-note {
-  margin: 0 0 12px;
+  margin: 16px 0 12px;
   font-size: 13px;
   line-height: 1.4;
 }
@@ -2478,4 +2478,48 @@ body.with-bottom-nav .editor-actions {
   margin: 0;
   font-size: 13px;
   line-height: 1.4;
+}
+
+/* Lista por seção do mercado */
+
+.shopping-section h2 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 18px 0 6px;
+  font-size: 17px;
+}
+
+.shopping-section h2.is-done {
+  color: var(--text-muted);
+}
+
+.shopping-section-count {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.shopping-section .info-card.shopping-list {
+  margin-bottom: 4px;
+}
+
+.shopping-section-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.shopping-section-picker select {
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
 }

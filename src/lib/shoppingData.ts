@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { FunctionsHttpError } from '@supabase/supabase-js'
 import { fetchAiAccess } from './ai'
 import { fetchExtras, fetchHouseFoods, fetchMembers } from './household'
+import type { SectionKey } from './marketSections'
 import { itemKey } from './shopping'
 import type { Ingredient, ShoppingInput } from './shopping'
 import { supabase } from './supabaseClient'
@@ -184,5 +185,24 @@ export async function saveManualIngredients(source: { itemKey: string; food: str
     },
     { onConflict: 'owner_id,item_key' },
   )
+  if (error) throw error
+}
+
+// ---------------------------------------------------------------------------
+// Seção do mercado escolhida pela pessoa
+// ---------------------------------------------------------------------------
+
+export async function fetchSections(): Promise<Map<string, SectionKey>> {
+  const { data, error } = await client.from('food_sections').select('food_key, section')
+  if (error) throw error
+  return new Map((data ?? []).map((r: { food_key: string; section: SectionKey }) => [r.food_key, r.section]))
+}
+
+/** Guarda a seção de um item; null volta à seção deduzida pelo nome. */
+export async function saveSection(foodKey: string, section: SectionKey | null): Promise<void> {
+  const { error } =
+    section === null
+      ? await client.from('food_sections').delete().eq('food_key', foodKey)
+      : await client.from('food_sections').upsert({ food_key: foodKey, section }, { onConflict: 'owner_id,food_key' })
   if (error) throw error
 }

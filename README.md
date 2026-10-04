@@ -173,6 +173,10 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
   quantidade em cru; sem VIP, regras automáticas (`ruleIngredients`). Guardado por item em
   `ingredient_maps`; dá para ajustar à mão na lista ("Ajustar ingredientes"), e a IA nunca
   sobrescreve o ajuste.
+- A lista é organizada pelas seções do mercado (Hortifrúti, Padaria, Carnes e peixes, Frios,
+  laticínios e ovos, Mercearia, Temperos, Bebidas, Congelados, Outros), deduzidas pelo nome sem IA
+  (`src/lib/marketSections.ts`, com testes); a pessoa pode mudar a seção de um item
+  (`food_sections`).
 
 ## O que ainda não existe (próximas fatias)
 
