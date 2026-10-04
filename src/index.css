@@ -1026,28 +1026,6 @@ input {
   color: var(--text-muted);
 }
 
-.meal-item-swap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-.meal-item-swap select {
-  flex: 1;
-  min-width: 0;
-  min-height: 36px;
-  padding: 4px 8px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-}
-
 /* Água */
 
 .water-card {
@@ -1277,10 +1255,6 @@ input {
   opacity: 0.6;
 }
 
-.meal-items-replaced .meal-item-swap {
-  display: none;
-}
-
 .meal-offplan-link {
   display: block;
   margin: -4px 8px 6px;
@@ -1352,4 +1326,48 @@ input {
 
 .offplan-form .banner p {
   margin: 0;
+}
+
+/* Trocas do plano dentro de "Troquei algo" */
+
+.meal-item-swapto {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.swap-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.swap-item p {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+
+.swap-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.swap-chip {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.swap-chip.is-selected {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
 }

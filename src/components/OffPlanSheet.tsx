@@ -4,13 +4,21 @@ import { AI_ESTIMATE_ESTIMATE_USD, acceptAiTerms, estimateMealWithAi, quotaPerce
 import type { AiAccess } from '../lib/ai'
 import { createCustomMeal, fetchCustomMeals, searchCustomMeals, touchCustomMeal } from '../lib/customMeals'
 import type { CustomMeal } from '../lib/customMeals'
-import type { OffPlanFood } from '../lib/mealLogs'
+import type { OffPlanFood, Swap } from '../lib/mealLogs'
 import { formatNumber } from '../lib/plan'
+import type { MealItem } from '../lib/plan'
 import { parseNumber } from '../lib/planDraft'
 import { AiTerms } from './AiTerms'
 
 type Props = {
   mealName: string
+  /** Alimentos da refeição que têm trocas previstas no plano. */
+  swapItems: MealItem[]
+  initialSwaps: Swap[]
+  /** A refeição já está marcada como feita pelo plano (o botão vira "Salvar trocas"). */
+  doneOnPlan: boolean
+  /** Marca a refeição como feita com estas trocas do plano. */
+  onConfirmSwaps: (swaps: Swap[]) => Promise<boolean>
   access: AiAccess | null
   onAccessChange: (access: AiAccess) => void
   onClose: () => void
@@ -28,10 +36,22 @@ function kcalLine(m: { kcal: number | null; description: string | null }) {
 }
 
 /**
- * "Comi outra coisa": escolhe da lista "Já comi antes" (sem IA), estima com IA
- * (VIP) ou digita à mão. O que for novo entra na lista para a próxima vez.
+ * "Troquei algo": (1) trocas previstas no plano, por alimento; ou (2) outra
+ * comida: escolhe da lista "Já comi antes" (sem IA), estima com IA (VIP) ou
+ * digita à mão. O que for novo entra na lista para a próxima vez.
  */
-export function OffPlanSheet({ mealName, access, onAccessChange, onClose, onConfirm }: Props) {
+export function OffPlanSheet({
+  mealName,
+  swapItems,
+  initialSwaps,
+  doneOnPlan,
+  onConfirmSwaps,
+  access,
+  onAccessChange,
+  onClose,
+  onConfirm,
+}: Props) {
+  const [swaps, setSwaps] = useState<Swap[]>(initialSwaps)
   const [library, setLibrary] = useState<CustomMeal[]>([])
   const [text, setText] = useState('')
   const [picked, setPicked] = useState<CustomMeal | null>(null)
@@ -50,6 +70,21 @@ export function OffPlanSheet({ mealName, access, onAccessChange, onClose, onConf
   const matches = picked || form ? [] : searchCustomMeals(library, text)
   const recent = !text.trim() && !picked && !form ? library.slice(0, 5) : []
   const aiReady = !!access?.vip && access.consented && access.monthSpentUsd < access.monthLimitUsd
+
+  const swapFor = (itemId: string) => swaps.find((s) => s.item_id === itemId)?.substitution ?? ''
+
+  function chooseSwap(item: MealItem, substitution: string) {
+    const others = swaps.filter((s) => s.item_id !== item.id)
+    setSwaps(substitution ? [...others, { item_id: item.id, food: item.food, substitution }] : others)
+  }
+
+  async function confirmSwaps() {
+    setError(null)
+    setBusy(true)
+    const ok = await onConfirmSwaps(swaps)
+    setBusy(false)
+    if (ok) onClose()
+  }
 
   function pick(meal: CustomMeal) {
     setPicked(meal)
@@ -140,7 +175,50 @@ export function OffPlanSheet({ mealName, access, onAccessChange, onClose, onConf
         aria-labelledby="offplan-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="offplan-title">O que você comeu no lugar de {mealName}?</h2>
+        <h2 id="offplan-title">{swapItems.length > 0 ? `O que mudou no ${mealName}?` : `O que você comeu no lugar de ${mealName}?`}</h2>
+
+        {!picked && !form && swapItems.length > 0 && (
+          <section className="swap-section" aria-label="Trocas do plano">
+            <span className="field-caption">Trocas do plano</span>
+            {swapItems.map((item) => {
+              const chosen = swapFor(item.id)
+              return (
+                <div key={item.id} className="swap-item">
+                  <p>
+                    {item.food} <small className="muted">{item.qty_text}</small>
+                  </p>
+                  <div className="swap-chips" role="radiogroup" aria-label={`Troca para ${item.food}`}>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={!chosen}
+                      className={`swap-chip${!chosen ? ' is-selected' : ''}`}
+                      onClick={() => chooseSwap(item, '')}
+                    >
+                      Como no plano
+                    </button>
+                    {item.substitutions.map((sub) => (
+                      <button
+                        key={sub.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={chosen === sub.text}
+                        className={`swap-chip${chosen === sub.text ? ' is-selected' : ''}`}
+                        onClick={() => chooseSwap(item, sub.text)}
+                      >
+                        {sub.text}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+            <button type="button" className="btn btn-primary" disabled={busy} onClick={confirmSwaps}>
+              {doneOnPlan ? 'Salvar trocas' : 'Marcar com estas trocas'}
+            </button>
+            <div className="divider">ou comi outra coisa</div>
+          </section>
+        )}
 
         {!picked && !form && (
           <>
@@ -151,7 +229,7 @@ export function OffPlanSheet({ mealName, access, onAccessChange, onClose, onConf
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Ex.: pipoca de panela, 1 tigela média"
-              autoFocus
+              autoFocus={swapItems.length === 0}
             />
 
             {(matches.length > 0 || recent.length > 0) && (

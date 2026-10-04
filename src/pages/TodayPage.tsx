@@ -60,25 +60,19 @@ type MealCardProps = {
   badge: string | null
   late: boolean
   log: MealLog | undefined
-  /** Trocas escolhidas antes de marcar (ainda não salvas). */
-  draftSwaps: Swap[]
   busy: boolean
   onToggle: () => void
-  onSwapChange: (swaps: Swap[]) => void
-  onOffPlan: () => void
+  /** Abre "Troquei algo": trocas do plano ou outra comida. */
+  onChange: () => void
 }
 
-function MealCard({ meal, badge, late, log, draftSwaps, busy, onToggle, onSwapChange, onOffPlan }: MealCardProps) {
+function MealCard({ meal, badge, late, log, busy, onToggle, onChange }: MealCardProps) {
   const totals = sumItems(meal.meal_items)
   const done = !!log
   const offPlan = isOffPlan(log)
-  const swaps = log?.swaps ?? draftSwaps
+  const swaps = offPlan ? [] : (log?.swaps ?? [])
   const swapFor = (itemId: string) => swaps.find((sw) => sw.item_id === itemId)?.substitution ?? ''
-
-  function chooseSwap(itemId: string, food: string, substitution: string) {
-    const others = swaps.filter((sw) => sw.item_id !== itemId)
-    onSwapChange(substitution ? [...others, { item_id: itemId, food, substitution }] : others)
-  }
+  const hasSwapOptions = meal.meal_items.some((i) => i.substitutions.length > 0)
 
   function handleCheck(e: MouseEvent) {
     // O botão fica dentro do <summary>: sem isto, o toque também abriria/fecharia o cartão.
@@ -132,25 +126,19 @@ function MealCard({ meal, badge, late, log, draftSwaps, busy, onToggle, onSwapCh
                 <span className={chosen ? 'meal-item-swapped' : undefined}>{item.food}</span>
                 <span className="meal-item-qty">{item.qty_text}</span>
               </div>
-              {item.substitutions.length > 0 && (
-                <label className="meal-item-swap">
-                  <span>{chosen ? 'Usei a troca:' : 'Trocas:'}</span>
-                  <select value={chosen} onChange={(e) => chooseSwap(item.id, item.food, e.target.value)}>
-                    <option value="">Como no plano</option>
-                    {item.substitutions.map((sub) => (
-                      <option key={sub.id} value={sub.text}>
-                        {sub.text}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
+              {chosen && <p className="meal-item-swapto">Troca: {chosen}</p>}
             </li>
           )
         })}
       </ul>
-      <button type="button" className="btn-link meal-offplan-link" onClick={onOffPlan} disabled={busy}>
-        {offPlan ? 'Trocar o que comi' : 'Comi outra coisa'}
+      <button type="button" className="btn-link meal-offplan-link" onClick={onChange} disabled={busy}>
+        {offPlan
+          ? 'Trocar o que comi'
+          : swaps.length > 0
+            ? 'Mudar trocas ou o que comi'
+            : hasSwapOptions
+              ? 'Troquei algo / comi outra coisa'
+              : 'Comi outra coisa'}
       </button>
     </details>
   )
@@ -218,7 +206,6 @@ export function TodayPage() {
 function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }) {
   // Registros do dia; recarrega quando vira o dia (date muda à meia-noite local).
   const [logs, setLogs] = useState<{ date: string; byMeal: Map<string, MealLog> } | null>(null)
-  const [draftSwaps, setDraftSwaps] = useState<Record<string, Swap[]>>({})
   const [busyMeal, setBusyMeal] = useState<string | null>(null)
   const [logError, setLogError] = useState<string | null>(null)
   const [offPlanMeal, setOffPlanMeal] = useState<Meal | null>(null)
@@ -263,10 +250,8 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
       if (existing) {
         await unmarkMeal(meal.id, date)
         setLog(meal.id, null)
-        // As trocas escolhidas continuam na tela, caso marque de novo.
-        setDraftSwaps((d) => ({ ...d, [meal.id]: existing.swaps }))
       } else {
-        const log = await markMealDone(meal, date, draftSwaps[meal.id] ?? [])
+        const log = await markMealDone(meal, date, [])
         setLog(meal.id, log)
       }
     } catch {
@@ -275,18 +260,21 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
     setBusyMeal(null)
   }
 
-  async function changeSwaps(meal: Meal, swaps: Swap[]) {
+  /** Marca a refeição como feita com as trocas do plano escolhidas (ou só atualiza as trocas). */
+  async function confirmSwaps(meal: Meal, swaps: Swap[]): Promise<boolean> {
+    setLogError(null)
     const log = byMeal.get(meal.id)
-    if (!log) {
-      setDraftSwaps((d) => ({ ...d, [meal.id]: swaps }))
-      return
-    }
-    setLog(meal.id, { ...log, swaps })
     try {
-      await updateSwaps(log.id, swaps)
+      if (log && !isOffPlan(log)) {
+        await updateSwaps(log.id, swaps)
+        setLog(meal.id, { ...log, swaps })
+      } else {
+        setLog(meal.id, await markMealDone(meal, date, swaps))
+      }
+      return true
     } catch {
-      setLog(meal.id, log)
-      setLogError('Não foi possível salvar a troca agora. Tente de novo.')
+      setLogError('Não foi possível salvar agora. Confira a internet e tente de novo.')
+      return false
     }
   }
 
@@ -352,11 +340,9 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
             badge={badgeFor(index)}
             late={timeToMinutes(meal.time) + CURRENT_MEAL_WINDOW_MIN <= now}
             log={byMeal.get(meal.id)}
-            draftSwaps={draftSwaps[meal.id] ?? []}
             busy={busyMeal === meal.id || !logs}
             onToggle={() => toggleMeal(meal)}
-            onSwapChange={(swaps) => changeSwaps(meal, swaps)}
-            onOffPlan={() => setOffPlanMeal(meal)}
+            onChange={() => setOffPlanMeal(meal)}
           />
         ))}
       </section>
@@ -368,6 +354,10 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
       {offPlanMeal && (
         <OffPlanSheet
           mealName={offPlanMeal.name}
+          swapItems={offPlanMeal.meal_items.filter((i) => i.substitutions.length > 0)}
+          initialSwaps={isOffPlan(byMeal.get(offPlanMeal.id)) ? [] : (byMeal.get(offPlanMeal.id)?.swaps ?? [])}
+          doneOnPlan={!!byMeal.get(offPlanMeal.id) && !isOffPlan(byMeal.get(offPlanMeal.id))}
+          onConfirmSwaps={(swaps) => confirmSwaps(offPlanMeal, swaps)}
           access={aiAccess}
           onAccessChange={setAiAccess}
           onClose={() => setOffPlanMeal(null)}
