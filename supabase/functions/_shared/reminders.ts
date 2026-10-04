@@ -6,6 +6,8 @@
 export const CATCH_UP_MIN = 10
 /** Refeição ainda não registrada: repete uma vez, este tanto depois do primeiro lembrete. */
 export const REPEAT_AFTER_MIN = 30
+/** Botão "Adiar" da notificação. */
+export const SNOOZE_MIN = 15
 
 export type ReminderSettings = {
   mealsEnabled: boolean
@@ -54,11 +56,13 @@ export type DueInput = {
   waterMl: number
   /** Lembretes já enviados hoje: chave de sentKey(). */
   sent: Set<string>
+  /** Lembretes adiados pelo botão da notificação, ainda não reenviados (horário local de hoje). */
+  snoozes?: { id: string; kind: 'meal' | 'water'; refId: string; atMin: number }[]
 }
 
 export type DueReminder =
-  | { kind: 'meal'; refId: string; attempt: 1 | 2; mealName: string; timeMin: number }
-  | { kind: 'water'; refId: string; attempt: 1; timeMin: number }
+  | { kind: 'meal'; refId: string; attempt: 1 | 2; mealName: string; timeMin: number; snoozeId?: string }
+  | { kind: 'water'; refId: string; attempt: 1; timeMin: number; ml: number; snoozeId?: string }
 
 export const sentKey = (kind: 'meal' | 'water', refId: string, attempt: number) => `${kind}:${refId}:${attempt}`
 
@@ -111,11 +115,47 @@ export function dueReminders(input: DueInput): DueReminder[] {
       // Em dia com o protocolo até este horário: não precisa lembrar.
       if (input.waterMl >= expected) continue
       if (dueNow(nowMin, slot.timeMin - settings.leadMin) && !sent.has(sentKey('water', slot.id, 1))) {
-        out.push({ kind: 'water', refId: slot.id, attempt: 1, timeMin: slot.timeMin })
+        out.push({ kind: 'water', refId: slot.id, attempt: 1, timeMin: slot.timeMin, ml: slot.ml })
       }
     }
   }
+
+  // Adiados pelo botão: voltam na hora marcada, se ainda fizer sentido.
+  for (const z of input.snoozes ?? []) {
+    if (!dueNow(nowMin, z.atMin) || out.some((d) => d.kind === z.kind && d.refId === z.refId)) continue
+    if (z.kind === 'meal') {
+      const meal = input.meals.find((m) => m.id === z.refId)
+      if (!meal || input.doneMealIds.has(meal.id)) continue
+      out.push({ kind: 'meal', refId: meal.id, attempt: 2, mealName: meal.name, timeMin: meal.timeMin, snoozeId: z.id })
+    } else {
+      const slots = [...input.waterSlots].sort((a, b) => a.timeMin - b.timeMin)
+      const i = slots.findIndex((w) => w.id === z.refId)
+      if (i < 0) continue
+      const expected = slots.slice(0, i + 1).reduce((s, w) => s + w.ml, 0)
+      if (input.waterMl >= expected) continue
+      out.push({ kind: 'water', refId: z.refId, attempt: 1, timeMin: slots[i].timeMin, ml: slots[i].ml, snoozeId: z.id })
+    }
+  }
   return out
+}
+
+export type NotificationAction = { action: 'done' | 'snooze'; title: string }
+
+/**
+ * Botões da notificação, para o lembrete principal (a refeição, se houver;
+ * senão a água): registrar e adiar. Devolve também a que lembrete se referem.
+ */
+export function notificationActions(due: DueReminder[]): { target: DueReminder; actions: NotificationAction[] } | null {
+  const target = due.find((d) => d.kind === 'meal') ?? due[0]
+  if (!target) return null
+  const register = target.kind === 'meal' ? 'Registrar' : `Registrar ${target.ml} mL`
+  return {
+    target,
+    actions: [
+      { action: 'done', title: register },
+      { action: 'snooze', title: `Adiar ${SNOOZE_MIN} min` },
+    ],
+  }
 }
 
 const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`

@@ -6,7 +6,10 @@
 // - "dispatch": chamada pelo agendamento do banco a cada minuto (cabeçalho
 //   x-cron-secret). Para cada pessoa com aparelho inscrito, escolhe os lembretes
 //   de refeição e água que venceram (regras em ../_shared/reminders.ts), envia
-//   uma notificação só e apaga as inscrições que não existem mais.
+//   uma notificação só (com os botões "Registrar" e "Adiar 15 min") e apaga as
+//   inscrições que não existem mais.
+// - "notification-action": toque num botão da notificação (vem do service
+//   worker, sem sessão). Vale pelo código de uso único que a notificação levou.
 //
 // O texto da notificação não traz dado de saúde (aparece na tela bloqueada).
 
@@ -15,8 +18,10 @@ import * as webpush from "jsr:@negrel/webpush@0.5.0"
 import { createClient } from "npm:@supabase/supabase-js@2"
 import {
   DEFAULT_SETTINGS,
+  SNOOZE_MIN,
   composeNotification,
   dueReminders,
+  notificationActions,
   sentKey,
   toMinutes,
 } from "../_shared/reminders.ts"
@@ -31,6 +36,8 @@ const corsHeaders = {
 /** Contato exigido pelo VAPID: o endereço do app (sem e-mail pessoal). */
 const CONTACT = "https://areiasthiago.github.io/nutri-web-app/"
 const APP_URL = "/nutri-web-app/"
+/** Para onde o service worker manda o toque nos botões. */
+const ACTION_URL = `${Deno.env.get("SUPABASE_URL")}/functions/v1/push`
 
 const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
   auth: { persistSession: false },
@@ -138,10 +145,11 @@ async function remindOwner(server: () => Promise<webpush.ApplicationServer>, own
     meals: { id: string; name: string; time: string }[]
     hydration_slots: { id: string; time: string; ml: number }[]
   }
-  const [logs, water, sends] = await Promise.all([
+  const [logs, water, sends, snoozes] = await Promise.all([
     admin.from("meal_logs").select("meal_id").eq("owner_id", ownerId).eq("log_date", date),
     admin.from("water_logs").select("ml").eq("owner_id", ownerId).eq("log_date", date),
     admin.from("reminder_sends").select("kind, ref_id, attempt").eq("owner_id", ownerId).eq("local_date", date),
+    admin.from("reminder_snoozes").select("id, kind, ref_id, send_at").eq("owner_id", ownerId).eq("local_date", date).is("sent_at", null),
   ])
 
   const due = dueReminders({
@@ -152,28 +160,68 @@ async function remindOwner(server: () => Promise<webpush.ApplicationServer>, own
     waterSlots: p.hydration_slots.map((h) => ({ id: h.id, timeMin: toMinutes(h.time), ml: Number(h.ml) })),
     waterMl: (water.data ?? []).reduce((s: number, w: { ml: number }) => s + Number(w.ml), 0),
     sent: new Set((sends.data ?? []).map((x: { kind: "meal" | "water"; ref_id: string; attempt: number }) => sentKey(x.kind, x.ref_id, x.attempt))),
+    snoozes: (snoozes.data ?? []).map((z: { id: string; kind: "meal" | "water"; ref_id: string; send_at: string }) => ({
+      id: z.id,
+      kind: z.kind,
+      refId: z.ref_id,
+      atMin: localNow(tz, new Date(z.send_at)).minutes,
+    })),
   })
   if (!due.length) return 0
 
   // Registra antes de enviar: o que outra execução já registrou não sai de novo.
-  const { data: claimed, error } = await admin
-    .from("reminder_sends")
-    .upsert(
-      due.map((d) => ({ owner_id: ownerId, local_date: date, kind: d.kind, ref_id: d.refId, attempt: d.attempt })),
-      { onConflict: "owner_id,local_date,kind,ref_id,attempt", ignoreDuplicates: true },
-    )
-    .select("kind, ref_id, attempt")
-  if (error) throw error
-  const claimedKeys = new Set((claimed ?? []).map((x: { kind: "meal" | "water"; ref_id: string; attempt: number }) => sentKey(x.kind, x.ref_id, x.attempt)))
-  const toSend = due.filter((d) => claimedKeys.has(sentKey(d.kind, d.refId, d.attempt)))
+  const regular = due.filter((d) => !d.snoozeId)
+  const claimedKeys = new Set<string>()
+  if (regular.length) {
+    const { data: claimed, error } = await admin
+      .from("reminder_sends")
+      .upsert(
+        regular.map((d) => ({ owner_id: ownerId, local_date: date, kind: d.kind, ref_id: d.refId, attempt: d.attempt })),
+        { onConflict: "owner_id,local_date,kind,ref_id,attempt", ignoreDuplicates: true },
+      )
+      .select("kind, ref_id, attempt")
+    if (error) throw error
+    for (const x of (claimed ?? []) as { kind: "meal" | "water"; ref_id: string; attempt: number }[]) {
+      claimedKeys.add(sentKey(x.kind, x.ref_id, x.attempt))
+    }
+  }
+  const snoozeIds = due.flatMap((d) => (d.snoozeId ? [d.snoozeId] : []))
+  const claimedSnoozes = new Set<string>()
+  if (snoozeIds.length) {
+    const { data, error } = await admin
+      .from("reminder_snoozes")
+      .update({ sent_at: new Date().toISOString() })
+      .in("id", snoozeIds)
+      .is("sent_at", null)
+      .select("id")
+    if (error) throw error
+    for (const z of (data ?? []) as { id: string }[]) claimedSnoozes.add(z.id)
+  }
+  const toSend = due.filter((d) =>
+    d.snoozeId ? claimedSnoozes.has(d.snoozeId) : claimedKeys.has(sentKey(d.kind, d.refId, d.attempt))
+  )
   const notification = composeNotification(toSend)
   if (!notification) return 0
+
+  // Botões: código de uso único para o lembrete principal.
+  const buttons = notificationActions(toSend)
+  let actionToken: string | null = null
+  if (buttons) {
+    const t = buttons.target
+    const { data, error } = await admin
+      .from("notification_actions")
+      .insert({ owner_id: ownerId, local_date: date, kind: t.kind, ref_id: t.refId, ml: t.kind === "water" ? t.ml : null })
+      .select("token")
+      .single()
+    if (!error) actionToken = (data as { token: string }).token
+  }
 
   const r = await sendToOwner(await server(), ownerId, {
     title: notification.title,
     body: notification.body,
     tag: notification.tag,
     url: `${APP_URL}#/?secao=${notification.section}`,
+    ...(actionToken && buttons ? { actions: buttons.actions, actionToken, actionUrl: ACTION_URL } : {}),
   })
   if (r.errors.length) console.warn(ownerId, r.errors)
   return r.ok
@@ -201,16 +249,105 @@ async function dispatch() {
   return { sent }
 }
 
+const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`
+
+type ActionRow = {
+  owner_id: string
+  local_date: string
+  kind: "meal" | "water"
+  ref_id: string
+  ml: number | null
+  used_at: string | null
+  created_at: string
+}
+
+/** Toque num botão da notificação. Devolve a mensagem de confirmação. */
+async function notificationAction(token: string, choice: "done" | "snooze"): Promise<string> {
+  const { data: row, error } = await admin
+    .from("notification_actions")
+    .select("owner_id, local_date, kind, ref_id, ml, used_at, created_at")
+    .eq("token", token)
+    .maybeSingle()
+  if (error) throw error
+  const a = row as ActionRow | null
+  if (!a || Date.now() - new Date(a.created_at).getTime() > 24 * 3600_000) {
+    return "Este lembrete expirou. Abra o app para registrar."
+  }
+  if (a.used_at) return "Já feito."
+  // Uso único: marca antes de agir (dois toques rápidos não registram duas vezes).
+  const { data: claimed } = await admin
+    .from("notification_actions")
+    .update({ used_at: new Date().toISOString() })
+    .eq("token", token)
+    .is("used_at", null)
+    .select("token")
+  if (!claimed?.length) return "Já feito."
+
+  if (choice === "snooze") {
+    const sendAt = new Date(Date.now() + SNOOZE_MIN * 60_000)
+    await admin.from("reminder_snoozes").insert({
+      owner_id: a.owner_id,
+      local_date: a.local_date,
+      kind: a.kind,
+      ref_id: a.ref_id,
+      send_at: sendAt.toISOString(),
+    })
+    // Adiar substitui a repetição automática de 30 min.
+    if (a.kind === "meal") {
+      await admin
+        .from("reminder_sends")
+        .upsert(
+          { owner_id: a.owner_id, local_date: a.local_date, kind: "meal", ref_id: a.ref_id, attempt: 2 },
+          { onConflict: "owner_id,local_date,kind,ref_id,attempt", ignoreDuplicates: true },
+        )
+    }
+    const { data: profile } = await admin.from("profiles").select("timezone").eq("id", a.owner_id).maybeSingle()
+    const tz = (profile?.timezone as string | undefined) ?? "America/Sao_Paulo"
+    return `Adiado para ${hhmm(localNow(tz, sendAt).minutes)}.`
+  }
+
+  if (a.kind === "meal") {
+    const { data: meal } = await admin
+      .from("meals")
+      .select("id, name, time")
+      .eq("id", a.ref_id)
+      .eq("owner_id", a.owner_id)
+      .maybeSingle()
+    if (!meal) return "Não encontrei a refeição. Abra o app para registrar."
+    const m = meal as { id: string; name: string; time: string }
+    // Se já estava registrada (ex.: com trocas), não mexe.
+    const { error: logError } = await admin.from("meal_logs").upsert(
+      {
+        owner_id: a.owner_id,
+        meal_id: m.id,
+        log_date: a.local_date,
+        meal_name: m.name,
+        meal_time: m.time,
+        done_at: new Date().toISOString(),
+      },
+      { onConflict: "owner_id,log_date,meal_id", ignoreDuplicates: true },
+    )
+    if (logError) throw logError
+    return `Registrado: ${m.name}.`
+  }
+
+  const ml = a.ml ?? 250
+  const { error: waterError } = await admin.from("water_logs").insert({ owner_id: a.owner_id, log_date: a.local_date, ml })
+  if (waterError) throw waterError
+  return `Registrado: ${ml} mL de água.`
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
   if (req.method !== "POST") return json({ error: "Use POST." }, 405)
 
-  let action = ""
+  let body: { action?: string; token?: string; choice?: string } = {}
   try {
-    action = ((await req.json()) as { action?: string }).action ?? ""
+    body = await req.json()
   } catch {
     return json({ error: "Corpo inválido." }, 400)
   }
+  const action = body.action ?? ""
 
   try {
     if (action === "dispatch") {
@@ -218,6 +355,14 @@ Deno.serve(async (req) => {
       const { data: valid } = await admin.rpc("push_check_cron_secret", { secret })
       if (!valid) return json({ error: "Não autorizado." }, 401)
       return json(await dispatch())
+    }
+
+    if (action === "notification-action") {
+      const token = body.token ?? ""
+      if (!/^[0-9a-f-]{36}$/i.test(token) || (body.choice !== "done" && body.choice !== "snooze")) {
+        return json({ error: "Pedido inválido." }, 400)
+      }
+      return json({ message: await notificationAction(token, body.choice) })
     }
 
     if (action === "public-key") {

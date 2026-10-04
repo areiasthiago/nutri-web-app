@@ -145,6 +145,9 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
   silêncio por padrão 31 min depois da última refeição até 06:30 (configurável); antecedência
   configurável. Regras em `supabase/functions/_shared/reminders.ts` (testes em
   `src/lib/reminders.test.ts`); envios do dia em `reminder_sends`, para não repetir.
+- Botões na notificação (Android): "Registrar" (refeição conforme o plano, ou o volume de água do
+  horário) e "Adiar 15 min" (cancela a repetição automática). Cada notificação leva um código de uso
+  único (`notification_actions`) que a função confere; adiados em `reminder_snoozes`.
 
 ## O que ainda não existe (próximas fatias)
 

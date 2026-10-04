@@ -6,6 +6,7 @@ import {
   composeNotification,
   dueReminders,
   inQuietHours,
+  notificationActions,
   quietStartFor,
   sentKey,
   toMinutes,
@@ -117,5 +118,32 @@ describe('lembretes de água', () => {
     const due = dueReminders(input({ nowMin: AGUA_2.timeMin, meals: [], waterMl: 500 }))
     expect(due).toMatchObject([{ kind: 'water', refId: 'agua2' }])
     expect(composeNotification(due)).toMatchObject({ title: 'Hora da água', section: 'agua' })
+  })
+})
+
+describe('botões da notificação e lembrete adiado', () => {
+  it('registrar e adiar a refeição; água registra o volume do horário', () => {
+    const both = dueReminders(input({ nowMin: ALMOCO.timeMin }))
+    expect(notificationActions(both)).toMatchObject({
+      target: { kind: 'meal', refId: 'almoco' },
+      actions: [{ action: 'done', title: 'Registrar' }, { action: 'snooze', title: 'Adiar 15 min' }],
+    })
+    const water = dueReminders(input({ nowMin: AGUA_2.timeMin, meals: [], waterMl: 300 }))
+    expect(notificationActions(water)?.actions[0].title).toBe('Registrar 500 mL')
+  })
+
+  it('adiado volta na hora marcada, só se ainda fizer sentido', () => {
+    const at = ALMOCO.timeMin + 15
+    const sent = new Set([sentKey('meal', 'almoco', 1), sentKey('meal', 'almoco', 2)])
+    const snoozes = [{ id: 'z1', kind: 'meal' as const, refId: 'almoco', atMin: at }]
+    expect(dueReminders(input({ nowMin: at, sent, snoozes, waterSlots: [] }))).toMatchObject([
+      { kind: 'meal', refId: 'almoco', snoozeId: 'z1' },
+    ])
+    // Registrou antes: não volta.
+    expect(dueReminders(input({ nowMin: at, sent, snoozes, doneMealIds: new Set(['almoco']), waterSlots: [] }))).toEqual([])
+    // Água adiada que já ficou em dia: não volta.
+    const w = [{ id: 'z2', kind: 'water' as const, refId: 'agua1', atMin: at }]
+    expect(dueReminders(input({ nowMin: at, meals: [], snoozes: w, waterMl: 300 }))).toEqual([])
+    expect(dueReminders(input({ nowMin: at, meals: [], snoozes: w, waterMl: 0 }))).toMatchObject([{ kind: 'water', snoozeId: 'z2' }])
   })
 })
