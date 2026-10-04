@@ -1837,15 +1837,27 @@ body.with-bottom-nav .editor-actions {
   font-size: 13px;
 }
 
-/* Notificações (teste) */
+/* Notificações (Minha conta) */
 
 .push-card .btn {
   width: 100%;
 }
 
-.info-card p.push-test-status {
-  margin: 10px 0 0;
+.info-card p.push-status {
   font-weight: 600;
+}
+
+.push-card .banner p {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+
+.push-help {
+  margin: 0 0 6px;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 /* Aviso para ativar notificações (tela Hoje) */

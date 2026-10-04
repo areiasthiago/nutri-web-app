@@ -1,8 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabase } from './supabaseClient'
 
-// Notificações (Web Push): inscrição deste aparelho e o teste "com o app fechado".
-// O envio é feito pela Edge Function "push", chamada pelo agendamento do banco.
+// Notificações (Web Push): inscrição deste aparelho. O envio é feito pela Edge
+// Function "push", chamada pelo agendamento do banco.
 
 // Só usado nas telas logadas, quando supabaseConfigError já é null.
 const client = supabase as SupabaseClient
@@ -61,32 +61,4 @@ export async function enablePush(): Promise<'ok' | 'denied'> {
   )
   if (saveError) throw saveError
   return 'ok'
-}
-
-export const TEST_DELAY_MIN = 2
-
-export type PushTest = { id: string; send_at: string; sent_at: string | null; result: string | null }
-
-/** Agenda a notificação de teste para daqui a alguns minutos. */
-export async function schedulePushTest(): Promise<PushTest> {
-  const sendAt = new Date(Date.now() + TEST_DELAY_MIN * 60_000).toISOString()
-  const { data, error } = await client
-    .from('push_tests')
-    .insert({ send_at: sendAt })
-    .select('id, send_at, sent_at, result')
-    .single()
-  if (error) throw error
-  return data as PushTest
-}
-
-/** Último teste agendado (para mostrar se já foi enviado). */
-export async function latestPushTest(): Promise<PushTest | null> {
-  const { data, error } = await client
-    .from('push_tests')
-    .select('id, send_at, sent_at, result')
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-  if (error) throw error
-  return data as PushTest | null
 }

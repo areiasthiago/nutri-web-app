@@ -135,8 +135,8 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
 - Cabeçalho com menu da conta: "Minha conta" (nome para a saudação, fuso horário, definir ou
   trocar senha) e "Sair".
 - Deploy automático para o GitHub Pages a cada push na `main`.
-- Notificações (prova de ponta a ponta dos lembretes), em "Minha conta": ativar neste aparelho e
-  "Testar com o app fechado". Web Push com chaves VAPID geradas pela Edge Function `push` e guardadas
+- Notificações: aviso na tela Hoje e cartão em "Minha conta" para ativar neste aparelho (permissão
+  pedida no toque). Web Push com chaves VAPID geradas pela Edge Function `push` e guardadas
   no Vault; o agendamento do banco (`pg_cron` + `pg_net`) chama a função a cada minuto, que envia o
   que venceu e apaga inscrições expiradas. Inscrições em `push_subscriptions`, testes em `push_tests`.
 

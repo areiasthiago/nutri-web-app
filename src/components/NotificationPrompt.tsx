@@ -7,6 +7,7 @@ import { currentSubscription, enablePush, pushSupport } from '../lib/push'
 
 const SNOOZE_KEY = 'nutrie:notif-prompt-snoozed-until'
 const SNOOZE_DAYS = 7
+const DONE_VISIBLE_MS = 4000
 
 function snoozed(): boolean {
   try {
@@ -36,6 +37,13 @@ export function NotificationPrompt() {
     }
   }, [state])
 
+  // Depois de ativar, a confirmação fecha sozinha.
+  useEffect(() => {
+    if (state !== 'done') return
+    const id = window.setTimeout(() => setState('hidden'), DONE_VISIBLE_MS)
+    return () => window.clearTimeout(id)
+  }, [state])
+
   function snooze() {
     try {
       localStorage.setItem(SNOOZE_KEY, String(Date.now() + SNOOZE_DAYS * 86_400_000))
@@ -63,9 +71,7 @@ export function NotificationPrompt() {
     return (
       <section className="notif-prompt" aria-live="polite">
         <p className="notif-prompt-title">Notificações ativas neste aparelho.</p>
-        <p>
-          Quer conferir? Em <Link to="/conta">Minha conta</Link>, toque em "Testar com o app fechado".
-        </p>
+        <p>Os lembretes vão chegar mesmo com o app fechado.</p>
         <button type="button" className="btn-link" onClick={() => setState('hidden')}>
           Fechar
         </button>
