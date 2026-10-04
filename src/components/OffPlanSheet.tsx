@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
-import { AI_ESTIMATE_ESTIMATE_USD, acceptAiTerms, estimateMealWithAi, quotaPercent } from '../lib/ai'
+import { estimateMealWithAi } from '../lib/ai'
 import type { AiAccess } from '../lib/ai'
 import { createCustomMeal, findCustomMealByName, searchCustomMealsInDb, touchCustomMeal } from '../lib/customMeals'
 import type { CustomMeal } from '../lib/customMeals'
@@ -8,8 +7,8 @@ import type { OffPlanFood, Swap } from '../lib/mealLogs'
 import { formatNumber } from '../lib/plan'
 import type { MealItem } from '../lib/plan'
 import { fold } from '../lib/planParser'
-import { parseNumber } from '../lib/planDraft'
-import { AiTerms } from './AiTerms'
+import { FoodEntry } from './FoodEntry'
+import type { FoodEntryStage } from './FoodEntry'
 
 type Props = {
   mealName: string
@@ -27,19 +26,10 @@ type Props = {
   onConfirm: (food: OffPlanFood) => Promise<boolean>
 }
 
-// Formulário com os valores (vindos da lista, da IA ou digitados), sempre editável.
-type Form = { name: string; description: string; kcal: string; protein_g: string; carbs_g: string; fat_g: string }
-
-const numText = (n: number | null | undefined) => (n === null || n === undefined ? '' : String(n).replace('.', ','))
-
-function kcalLine(m: { kcal: number | null; description: string | null }) {
-  return [m.description, m.kcal !== null ? `${formatNumber(m.kcal)} kcal` : null].filter(Boolean).join(' · ')
-}
-
 /**
- * "Troquei algo": (1) trocas previstas no plano, por alimento; ou (2) outra
- * comida: escolhe da lista "Já comi antes" (sem IA), estima com IA (VIP) ou
- * digita à mão. O que for novo entra na lista para a próxima vez.
+ * "Fazer trocas": (1) por alimento, o do plano, as trocas previstas ou
+ * "Outro…" (desmarcar deixa o grupo vazio = não comeu); ou (2) outra comida
+ * no lugar da refeição inteira (FoodEntry).
  */
 export function OffPlanSheet({
   mealName,
@@ -62,32 +52,14 @@ export function OffPlanSheet({
           .map((s) => s.item_id),
       ),
   )
-  const [text, setText] = useState('')
-  // Resultados da busca no banco: refeições (campo de descrever) e, por alimento, itens (campo "Outro…").
-  const [mealMatches, setMealMatches] = useState<CustomMeal[]>([])
+  // Por alimento, alimentos já trocados antes que combinam com o digitado no "Outro…".
   const [itemMatches, setItemMatches] = useState<Record<string, CustomMeal[]>>({})
-  const [picked, setPicked] = useState<CustomMeal | null>(null)
-  const [form, setForm] = useState<Form | null>(null)
-  const [aiNotes, setAiNotes] = useState<string[]>([])
-  const [fromAi, setFromAi] = useState(false)
+  const [entryStage, setEntryStage] = useState<FoodEntryStage>('search')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [busyText, setBusyText] = useState<string | null>(null)
 
-  // Busca refeições já registradas enquanto digita (com uma pequena pausa, para não buscar a cada letra).
-  useEffect(() => {
-    let active = true
-    const id = window.setTimeout(() => {
-      searchCustomMealsInDb('meal', text)
-        .then((rows) => active && setMealMatches(rows))
-        .catch(() => active && setMealMatches([]))
-    }, 250)
-    return () => {
-      active = false
-      window.clearTimeout(id)
-    }
-  }, [text])
+  const aiReady = !!access?.vip && access.consented && access.monthSpentUsd < access.monthLimitUsd
 
-  // O mesmo para o "Outro…" de cada alimento: busca alimentos já trocados antes.
   const customTexts = swaps
     .filter((s) => customOpen.has(s.item_id))
     .map((s) => `${s.item_id}=${s.substitution}`)
@@ -106,14 +78,11 @@ export function OffPlanSheet({
     }
   }, [customTexts])
 
-  const matches = picked || form ? [] : mealMatches
   /** Sugestões do "Outro…" de um alimento (sem repetir o que já está escrito). */
   const itemSuggestions = (itemId: string, typed: string) =>
     typed.trim() ? (itemMatches[itemId] ?? []).filter((m) => fold(m.name) !== fold(typed.trim())) : []
-  const aiReady = !!access?.vip && access.consented && access.monthSpentUsd < access.monthLimitUsd
 
   const swapFor = (itemId: string) => swaps.find((s) => s.item_id === itemId)?.substitution ?? ''
-
   const skippedFor = (itemId: string) => swaps.some((s) => s.item_id === itemId && s.skipped)
 
   /** Grupo vazio (opção desmarcada): o alimento não foi comido e conta zero. */
@@ -140,8 +109,6 @@ export function OffPlanSheet({
       return next
     })
   }
-
-  const [busyText, setBusyText] = useState<string | null>(null)
 
   /**
    * Valores da troca: da lista "Já comi antes" se já existir (sem IA); senão,
@@ -180,7 +147,6 @@ export function OffPlanSheet({
   }
 
   async function confirmSwaps() {
-    setError(null)
     setBusy(true)
     let enriched = swaps
     try {
@@ -197,87 +163,6 @@ export function OffPlanSheet({
     if (ok) onClose()
   }
 
-  function pick(meal: CustomMeal) {
-    setPicked(meal)
-    setForm(null)
-    setError(null)
-  }
-
-  async function handleAi() {
-    if (!text.trim()) return
-    setError(null)
-    setBusy(true)
-    const result = await estimateMealWithAi(text.trim())
-    setBusy(false)
-    if (!result.ok) {
-      setError(result.error)
-      return
-    }
-    const e = result.estimate
-    setFromAi(true)
-    setAiNotes(e.notes ?? [])
-    setForm({
-      name: e.name,
-      description: e.description,
-      kcal: numText(e.kcal),
-      protein_g: numText(e.protein_g),
-      carbs_g: numText(e.carbs_g),
-      fat_g: numText(e.fat_g),
-    })
-    onAccessChange({ ...access!, monthSpentUsd: access!.monthSpentUsd + result.costUsd })
-  }
-
-  function handleManual() {
-    setFromAi(false)
-    setAiNotes([])
-    setForm({ name: text.trim().slice(0, 80), description: '', kcal: '', protein_g: '', carbs_g: '', fat_g: '' })
-  }
-
-  async function handleAccept() {
-    if (await acceptAiTerms()) onAccessChange({ ...access!, consented: true })
-    else setError('Não foi possível registrar o aceite agora. Tente de novo.')
-  }
-
-  async function confirm(e?: FormEvent) {
-    e?.preventDefault()
-    setError(null)
-    setBusy(true)
-    try {
-      let food: OffPlanFood
-      if (picked) {
-        await touchCustomMeal(picked)
-        food = { custom_meal_id: picked.id, name: picked.name, kcal: picked.kcal, protein_g: picked.protein_g, carbs_g: picked.carbs_g, fat_g: picked.fat_g }
-      } else if (form) {
-        if (!form.name.trim()) {
-          setError('Dê um nome para o que você comeu.')
-          setBusy(false)
-          return
-        }
-        // Entra na lista "Já comi antes" para a próxima vez, sem IA.
-        const saved = await createCustomMeal({
-          name: form.name.trim().slice(0, 80),
-          description: form.description.trim().slice(0, 300) || null,
-          kcal: parseNumber(form.kcal),
-          protein_g: parseNumber(form.protein_g),
-          carbs_g: parseNumber(form.carbs_g),
-          fat_g: parseNumber(form.fat_g),
-          source: fromAi ? 'ai' : 'manual',
-          kind: 'meal',
-        })
-        food = { custom_meal_id: saved.id, name: saved.name, kcal: saved.kcal, protein_g: saved.protein_g, carbs_g: saved.carbs_g, fat_g: saved.fat_g }
-      } else {
-        setBusy(false)
-        return
-      }
-      if (await onConfirm(food)) onClose()
-    } catch {
-      setError('Não foi possível salvar agora. Confira a internet e tente de novo.')
-    }
-    setBusy(false)
-  }
-
-  const setField = (key: keyof Form, value: string) => setForm((f) => (f ? { ...f, [key]: value } : f))
-
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div
@@ -289,7 +174,7 @@ export function OffPlanSheet({
       >
         <h2 id="offplan-title">Trocas · {mealName}</h2>
 
-        {!picked && !form && swapItems.length > 0 && (
+        {entryStage === 'search' && swapItems.length > 0 && (
           <section className="swap-section" aria-label="Trocas do plano">
             {/* Um grupo por alimento: o do plano (já selecionado), as trocas previstas e "Outro…". */}
             {swapItems.map((item) => {
@@ -365,107 +250,20 @@ export function OffPlanSheet({
           </section>
         )}
 
-        {!picked && !form && (
-          <>
-            <textarea
-              className="offplan-input"
-              rows={3}
-              maxLength={300}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Busque uma refeição que você já registrou ou descreva uma nova (alimentos, quantidades, peso)"
-              autoFocus={swapItems.length === 0}
-            />
-
-            {matches.length > 0 && (
-              <div className="offplan-library">
-                <span className="field-caption">Já comi antes</span>
-                <ul>
-                  {matches.map((m) => (
-                    <li key={m.id}>
-                      <button type="button" className="offplan-choice" onClick={() => pick(m)}>
-                        <strong>{m.name}</strong>
-                        <small>{kcalLine(m)}</small>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {access?.vip && !access.consented && text.trim() && <AiTerms onAccept={handleAccept} />}
-            {aiReady && (
-              <button type="button" className="btn btn-primary" disabled={!text.trim() || busy} onClick={handleAi}>
-                {busy ? 'Calculando…' : `Calcular com IA (usa cerca de ${quotaPercent(AI_ESTIMATE_ESTIMATE_USD, access!.monthLimitUsd)}% da cota)`}
-              </button>
-            )}
-            <button type="button" className="btn btn-outline-neutral" disabled={busy} onClick={handleManual}>
-              Trocar à mão
-            </button>
-          </>
-        )}
-
-        {picked && (
-          <div className="offplan-picked">
-            <p>
-              <strong>{picked.name}</strong>
-              <br />
-              <span className="muted">{kcalLine(picked) || 'Sem valores registrados'}</span>
-            </p>
-            <button type="button" className="btn btn-primary" disabled={busy} onClick={() => confirm()}>
-              {busy ? 'Salvando…' : 'Marcar refeição'}
-            </button>
-            <button type="button" className="btn-link" onClick={() => setPicked(null)}>
-              Escolher outra coisa
-            </button>
-          </div>
-        )}
-
-        {form && (
-          <form className="offplan-form" onSubmit={confirm}>
-            {aiNotes.length > 0 && (
-              <div className="banner banner-info">
-                {aiNotes.map((n) => (
-                  <p key={n}>{n}</p>
-                ))}
-              </div>
-            )}
-            <label className="field">
-              <span>O que você comeu</span>
-              <input value={form.name} maxLength={80} onChange={(e) => setField('name', e.target.value)} placeholder="Nome da refeição" />
-            </label>
-            <label className="field">
-              <span>Quantidade</span>
-              <input value={form.description} maxLength={300} onChange={(e) => setField('description', e.target.value)} placeholder="Quantidade, peso, etc." />
-            </label>
-            <div className="field-grid">
-              <label className="field">
-                <span>Calorias (kcal)</span>
-                <input inputMode="decimal" value={form.kcal} onChange={(e) => setField('kcal', e.target.value)} />
-              </label>
-              <label className="field">
-                <span>Proteína (g)</span>
-                <input inputMode="decimal" value={form.protein_g} onChange={(e) => setField('protein_g', e.target.value)} />
-              </label>
-              <label className="field">
-                <span>Carboidrato (g)</span>
-                <input inputMode="decimal" value={form.carbs_g} onChange={(e) => setField('carbs_g', e.target.value)} />
-              </label>
-              <label className="field">
-                <span>Gordura (g)</span>
-                <input inputMode="decimal" value={form.fat_g} onChange={(e) => setField('fat_g', e.target.value)} />
-              </label>
-            </div>
-            <button type="submit" className="btn btn-primary" disabled={busy}>
-              {busy ? 'Salvando…' : 'Marcar refeição'}
-            </button>
-            <button type="button" className="btn-link" onClick={() => setForm(null)}>
-              Voltar
-            </button>
-          </form>
-        )}
-
-        {error && <p className="banner banner-error">{error}</p>}
+        <FoodEntry
+          access={access}
+          onAccessChange={onAccessChange}
+          onConfirm={async (food) => {
+            const ok = await onConfirm(food)
+            if (ok) onClose()
+            return ok
+          }}
+          placeholder="Busque uma refeição que você já registrou ou descreva uma nova (alimentos, quantidades, peso)"
+          confirmLabel="Marcar refeição"
+          manualLabel="Trocar à mão"
+          autoFocus={swapItems.length === 0}
+          onStageChange={setEntryStage}
+        />
 
         <button type="button" className="btn-link" onClick={onClose}>
           Cancelar

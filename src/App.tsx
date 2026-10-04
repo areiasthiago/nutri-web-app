@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './auth/AuthProvider'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { AppHeader } from './components/AppHeader'
+import { BottomNav } from './components/BottomNav'
 import { Footer } from './components/Footer'
 import { InstallBanner } from './components/InstallBanner'
 import { ThemeToggle } from './components/ThemeToggle'
@@ -14,6 +15,7 @@ import { InstallPage } from './pages/InstallPage'
 import { LoginPage } from './pages/LoginPage'
 import { MyPlanPage } from './pages/MyPlanPage'
 import { NewPlanPage } from './pages/NewPlanPage'
+import { StatsPage } from './pages/StatsPage'
 import { TodayPage } from './pages/TodayPage'
 
 /** Telas logadas: cabeçalho com marca, tema e menu da conta. */
@@ -23,6 +25,7 @@ function SignedInLayout() {
       <ProfileProvider>
         <AppHeader />
         <Outlet />
+        <BottomNav />
       </ProfileProvider>
     </ProtectedRoute>
   )
@@ -79,6 +82,7 @@ function App() {
                 <Route path="/conta" element={<AccountPage />} />
                 <Route path="/plano" element={<MyPlanPage />} />
                 <Route path="/plano/novo" element={<NewPlanPage />} />
+                <Route path="/estatisticas" element={<StatsPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { MouseEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
+import { scrollToSection } from '../components/BottomNav'
+import type { TodaySection } from '../components/BottomNav'
 import { OffPlanSheet } from '../components/OffPlanSheet'
+import { SnackCard } from '../components/SnackCard'
 import { WaterCard } from '../components/WaterCard'
 import { fetchAiAccess } from '../lib/ai'
 import type { AiAccess } from '../lib/ai'
@@ -32,6 +35,8 @@ import {
 } from '../lib/plan'
 import type { Meal, Plan, Totals } from '../lib/plan'
 import { useProfile } from '../lib/profile'
+import { addSnack, deleteSnack, fetchSnacks, plusSnacks } from '../lib/snacks'
+import type { SnackLog } from '../lib/snacks'
 
 type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; plan: Plan | null }
 
@@ -241,6 +246,7 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
   const [busyMeal, setBusyMeal] = useState<string | null>(null)
   const [logError, setLogError] = useState<string | null>(null)
   const [offPlanMeal, setOffPlanMeal] = useState<Meal | null>(null)
+  const [snacks, setSnacks] = useState<{ date: string; rows: SnackLog[] }>({ date, rows: [] })
   const [aiAccess, setAiAccess] = useState<AiAccess | null>(null)
 
   useEffect(() => {
@@ -260,6 +266,40 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
       active = false
     }
   }, [date])
+
+  // O que foi comido fora de hora no dia (recarrega quando vira o dia).
+  useEffect(() => {
+    let active = true
+    fetchSnacks(date)
+      .then((rows) => active && setSnacks({ date, rows }))
+      .catch(() => active && setSnacks({ date, rows: [] }))
+    return () => {
+      active = false
+    }
+  }, [date])
+  const snackRows = snacks.date === date ? snacks.rows : []
+
+  async function addSnackToDay(food: OffPlanFood): Promise<boolean> {
+    setLogError(null)
+    try {
+      const row = await addSnack(date, food)
+      setSnacks((s) => ({ date, rows: [...(s.date === date ? s.rows : []), row] }))
+      return true
+    } catch {
+      setLogError('Não foi possível salvar agora. Confira a internet e tente de novo.')
+      return false
+    }
+  }
+
+  async function removeSnack(id: string) {
+    setLogError(null)
+    try {
+      await deleteSnack(id)
+      setSnacks((s) => ({ date, rows: s.rows.filter((r) => r.id !== id) }))
+    } catch {
+      setLogError('Não foi possível apagar agora. Tente de novo.')
+    }
+  }
 
   const byMeal = logs?.date === date ? logs.byMeal : new Map<string, MealLog>()
   const doneIds = new Set(byMeal.keys())
@@ -322,10 +362,21 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
     }
   }
 
+  // Veio de outra tela pela barra de navegação: rola até a seção pedida.
+  const location = useLocation()
+  const scrollTarget = (location.state as { scrollTo?: TodaySection } | null)?.scrollTo
+  useEffect(() => {
+    if (!logs || !scrollTarget) return
+    const id = window.setTimeout(() => scrollToSection(scrollTarget), 50)
+    return () => window.clearTimeout(id)
+  }, [logs, scrollTarget])
+
   const highlighted = highlightedMealIndex(plan.meals, now, doneIds)
   const dayTotals = sumItems(plan.meals.flatMap((m) => m.meal_items))
-  const consumed = consumedTotals(plan.meals, byMeal)
-  const deviation = planDeviation(plan.meals, byMeal)
+  // Fora de hora soma no comido e fica todo acima do plano.
+  const consumed = plusSnacks(consumedTotals(plan.meals, byMeal), snackRows)
+  const deviation = plusSnacks(planDeviation(plan.meals, byMeal), snackRows)
+  const hasEaten = doneCount > 0 || snackRows.length > 0
   const targetTotals =
     plan.target_kcal !== null
       ? { kcal: plan.target_kcal, protein_g: plan.target_protein_g, carbs_g: plan.target_carbs_g, fat_g: plan.target_fat_g }
@@ -342,51 +393,63 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
 
   return (
     <>
-      <div className="day-progress">
-        <div className="quota-head">
-          <span>Refeições de hoje</span>
-          <strong>
-            {doneCount} de {plan.meals.length} feitas
-          </strong>
+      <div id="refeicoes" className="today-section">
+        <div className="day-progress">
+          <div className="quota-head">
+            <span>Refeições de hoje</span>
+            <strong>
+              {doneCount} de {plan.meals.length} feitas
+            </strong>
+          </div>
+          <div
+            className="quota-bar"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={plan.meals.length}
+            aria-valuenow={doneCount}
+            aria-label="Refeições feitas hoje"
+          >
+            <span style={{ width: `${plan.meals.length ? (doneCount / plan.meals.length) * 100 : 0}%` }} />
+          </div>
         </div>
-        <div
-          className="quota-bar"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={plan.meals.length}
-          aria-valuenow={doneCount}
-          aria-label="Refeições feitas hoje"
-        >
-          <span style={{ width: `${plan.meals.length ? (doneCount / plan.meals.length) * 100 : 0}%` }} />
-        </div>
+
+        {logError && <p className="banner banner-error">{logError}</p>}
+
+        {logs && doneCount === plan.meals.length && plan.meals.length > 0 && (
+          <p className="banner banner-info">Todas as refeições de hoje feitas. Muito bem!</p>
+        )}
+        {logs && highlighted === -1 && doneCount < plan.meals.length && (
+          <p className="banner banner-info">Ficou refeição sem marcar hoje. Se você comeu, toque no círculo dela.</p>
+        )}
+
+        <section className="meal-list" aria-label="Refeições de hoje">
+          {plan.meals.map((meal, index) => (
+            <MealCard
+              key={meal.id}
+              meal={meal}
+              badge={badgeFor(index)}
+              late={timeToMinutes(meal.time) + CURRENT_MEAL_WINDOW_MIN <= now}
+              log={byMeal.get(meal.id)}
+              busy={busyMeal === meal.id || !logs}
+              onToggle={() => toggleMeal(meal)}
+              onChange={() => setOffPlanMeal(meal)}
+            />
+          ))}
+        </section>
+
+        <SnackCard
+          snacks={snackRows}
+          access={aiAccess}
+          onAccessChange={setAiAccess}
+          onAdd={addSnackToDay}
+          onRemove={removeSnack}
+        />
       </div>
 
-      {logError && <p className="banner banner-error">{logError}</p>}
-
-      {logs && doneCount === plan.meals.length && plan.meals.length > 0 && (
-        <p className="banner banner-info">Todas as refeições de hoje feitas. Muito bem!</p>
-      )}
-      {logs && highlighted === -1 && doneCount < plan.meals.length && (
-        <p className="banner banner-info">Ficou refeição sem marcar hoje. Se você comeu, toque no círculo dela.</p>
-      )}
-
-      <section className="meal-list" aria-label="Refeições de hoje">
-        {plan.meals.map((meal, index) => (
-          <MealCard
-            key={meal.id}
-            meal={meal}
-            badge={badgeFor(index)}
-            late={timeToMinutes(meal.time) + CURRENT_MEAL_WINDOW_MIN <= now}
-            log={byMeal.get(meal.id)}
-            busy={busyMeal === meal.id || !logs}
-            onToggle={() => toggleMeal(meal)}
-            onChange={() => setOffPlanMeal(meal)}
-          />
-        ))}
-      </section>
-
       {plan.target_water_ml && (
-        <WaterCard targetMl={plan.target_water_ml} slots={plan.hydration_slots} date={date} nowMinutes={now} />
+        <div id="agua" className="today-section">
+          <WaterCard targetMl={plan.target_water_ml} slots={plan.hydration_slots} date={date} nowMinutes={now} />
+        </div>
       )}
 
       {offPlanMeal && (
@@ -403,11 +466,11 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
         />
       )}
 
-      <section className="info-card">
+      <section id="resumo" className="info-card today-section">
         <h2>Resumo do plano</h2>
-        {doneCount > 0 && (
+        {hasEaten && (
           <p>
-            <span className="muted">Comido hoje (refeições marcadas):</span>
+            <span className="muted">Comido hoje (refeições marcadas e fora de hora):</span>
             <br />
             <MacroLine totals={consumed} />
             {dailyRef !== null && (
@@ -418,9 +481,9 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
             )}
           </p>
         )}
-        {doneCount > 0 && (
+        {hasEaten && (
           <p>
-            <span className="muted">Diferença do plano nessas refeições:</span>
+            <span className="muted">Diferença do plano até agora:</span>
             <br />
             <DeltaText value={deviation.kcal} unit=" kcal" />
             {deviation.protein_g !== null && (

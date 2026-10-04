@@ -117,6 +117,8 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
 - "Comi outra coisa" em cada refeição: escolhe da lista pessoal "Já comi antes" (sem IA),
   estima calorias e macros com IA (VIP) ou digita à mão; o que é novo entra na lista. O
   resumo do dia mostra o que foi comido nas refeições marcadas (plano + fora do plano).
+- "Comeu fora de hora?" na tela Hoje, antes da água: descreve o que comeu fora das refeições
+  (busca o que já registrou, estima com IA ou preenche à mão) e isso soma no total do dia.
 - Água na tela Hoje: progresso contra a meta do plano, botões de um toque (200/500 mL e o
   volume do protocolo) e "Outro", horários do plano como guia e registros do dia com
   "Apagar" (regras testadas em `src/lib/water.test.ts`).
@@ -124,6 +126,12 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
   aplica só o pedido e lista o que mudou), editar à mão no mesmo editor, ou enviar um plano
   novo. Cada salvamento cria uma versão nova (a anterior fica guardada) e as refeições já
   marcadas hoje passam para a versão nova.
+- Barra de navegação embaixo: Refeições, Água e Resumo (rolam a tela Hoje) e Estatísticas.
+- Estatísticas (barra de baixo ou menu ☰): dia, semana e mês, com refeições feitas, água contra
+  a meta e calorias comidas contra o total do plano, em gráficos por dia; sequência de dias
+  completos e selo de parabéns para compartilhar (só a conquista, nada do plano). Regras
+  testadas em `src/lib/stats.test.ts`.
+- Selo "beta v1.0.N" no cabeçalho: N é o número do deploy, para conferir a versão em produção.
 - Cabeçalho com menu da conta: "Minha conta" (nome para a saudação, fuso horário, definir ou
   trocar senha) e "Sair".
 - Deploy automático para o GitHub Pages a cada push na `main`.

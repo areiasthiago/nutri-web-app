@@ -47,6 +47,9 @@ export function AppHeader() {
       <Link to="/" className="app-brand" aria-label="Nutriê, ir para Hoje">
         <img src={logoMark} alt="" className="app-brand-logo" width={36} height={33} />
         <Wordmark height={26} />
+        <span className="version-badge" title={`Versão ${__APP_VERSION__} (${__APP_COMMIT__})`}>
+          beta v{__APP_VERSION__}
+        </span>
       </Link>
 
       <div className="app-header-actions" ref={menuRef}>
@@ -70,6 +73,9 @@ export function AppHeader() {
             </div>
             <Link to="/plano" className="account-menu-item" onClick={() => setMenuOpen(false)}>
               Meu plano
+            </Link>
+            <Link to="/estatisticas" className="account-menu-item" onClick={() => setMenuOpen(false)}>
+              Estatísticas
             </Link>
             <Link to="/conta" className="account-menu-item" onClick={() => setMenuOpen(false)}>
               Minha conta

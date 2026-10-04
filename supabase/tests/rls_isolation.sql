@@ -46,6 +46,7 @@ begin
     values (meal_a, current_date, 'Almoço', '12:00');
   insert into public.water_logs (log_date, ml) values (current_date, 362);
   insert into public.custom_meals (name, kcal) values ('Pipoca', 130);
+  insert into public.snack_logs (log_date, name, kcal) values (current_date, 'Chocolate', 140);
   select count(*) into n from public.plans; report := report || 'A vê planos: ' || n || '; ';
   select count(*) into n from public.ai_plan_extractions; report := report || 'A vê a própria leitura PDF: ' || n || '; ';
   update public.profiles set display_name = 'A' where id = a;
@@ -79,6 +80,15 @@ begin
     report := report || 'B registra água em nome de A: PERMITIU; ';
   exception when others then
     report := report || 'B registra água em nome de A: bloqueado (' || sqlstate || '); ';
+  end;
+  select count(*) into n from public.snack_logs; report := report || 'B vê fora de hora de A: ' || n || '; ';
+  delete from public.snack_logs;
+  get diagnostics n = row_count; report := report || 'B apaga fora de hora de A: ' || n || '; ';
+  begin
+    insert into public.snack_logs (owner_id, log_date, name) values (a, current_date, 'x');
+    report := report || 'B registra fora de hora em nome de A: PERMITIU; ';
+  exception when others then
+    report := report || 'B registra fora de hora em nome de A: bloqueado (' || sqlstate || '); ';
   end;
   select count(*) into n from public.custom_meals; report := report || 'B vê lista Já comi antes de A: ' || n || '; ';
   update public.custom_meals set kcal = 0;
