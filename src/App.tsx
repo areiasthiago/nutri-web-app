@@ -17,6 +17,7 @@ import { LoginPage } from './pages/LoginPage'
 import { MyPlanPage } from './pages/MyPlanPage'
 import { NewPlanPage } from './pages/NewPlanPage'
 import { OnboardingPage } from './pages/OnboardingPage'
+import { ShoppingPage } from './pages/ShoppingPage'
 import { StatsPage } from './pages/StatsPage'
 import { TodayPage } from './pages/TodayPage'
 
@@ -89,6 +90,7 @@ function App() {
                 <Route path="/estatisticas" element={<StatsPage />} />
                 <Route path="/casa" element={<HouseholdPage />} />
                 <Route path="/comecar" element={<OnboardingPage />} />
+                <Route path="/compras" element={<ShoppingPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

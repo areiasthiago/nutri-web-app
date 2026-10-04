@@ -2260,3 +2260,154 @@ body.with-bottom-nav .editor-actions {
   font-size: 14px;
   color: var(--info-text);
 }
+
+/* Lista de compras */
+
+.shopping-week {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+
+.shopping-week p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.shopping-day {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.shopping-day select {
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.shopping-progress {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.info-card.shopping-list {
+  margin-bottom: 16px;
+  padding: 2px 14px;
+  list-style: none;
+}
+
+.shopping-item {
+  border-bottom: 1px solid var(--border);
+}
+
+.shopping-item:last-child {
+  border-bottom: 0;
+}
+
+.shopping-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+}
+
+.shopping-row input {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  accent-color: var(--primary);
+}
+
+.shopping-name,
+.shopping-name-static {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.shopping-amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.shopping-who {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: right;
+}
+
+.shopping-item.is-checked .shopping-name,
+.shopping-item.is-checked .shopping-name-static {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.shopping-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 0 12px 36px;
+}
+
+.shopping-parts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.shopping-parts li {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  color: var(--text-muted);
+}
+
+.shopping-yield p.muted {
+  margin: 0;
+  font-size: 13px;
+}
+
+.shopping-yield .btn-link {
+  font-size: 13px;
+}
+
+.shopping-unquantified h2 {
+  margin: 8px 0 2px;
+  font-size: 17px;
+}
+
+.shopping-unquantified > p.muted {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.shopping-note {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.4;
+}

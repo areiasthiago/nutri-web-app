@@ -17,9 +17,11 @@ export type Profile = {
   /** Primeiros passos: onde parou; e quando terminou (ou pulou). */
   onboarding_step: OnboardingStep | null
   onboarding_done_at: string | null
+  /** Dia de compras (0 = domingo … 6 = sábado). */
+  shopping_day: number
 }
 
-const COLUMNS = 'display_name, timezone, onboarding_step, onboarding_done_at'
+const COLUMNS = 'display_name, timezone, onboarding_step, onboarding_done_at, shopping_day'
 
 type ProfileContextValue = {
   profile: Profile
@@ -38,6 +40,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     timezone: DEFAULT_TIMEZONE,
     onboarding_step: null,
     onboarding_done_at: null,
+    shopping_day: 6,
   })
   const [loaded, setLoaded] = useState(false)
 

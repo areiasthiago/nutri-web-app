@@ -160,9 +160,17 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
   pular; o passo fica salvo no perfil (`onboarding_step`, `onboarding_done_at`) e dá para rever pelo
   menu ☰.
 
+- Lista de compras da semana (menu ☰): soma os planos ativos (do usuário e das pessoas da casa,
+  quantidade × dias em que a refeição é feita em casa), as pessoas sem plano (porção da comida da
+  casa × fator × refeições em casa) e os extras; converte pronto em cru pelo rendimento (padrões do
+  briefing, ajustável por alimento em `food_yields`); mostra a parte de cada pessoa; itens sem
+  quantidade numérica ficam à parte. Semana a partir do dia de compras (padrão sábado,
+  `profiles.shopping_day`); o que já foi comprado fica em `shopping_checks`. Regras em
+  `src/lib/shopping.ts` (testes em `src/lib/shopping.test.ts`).
+
 ## O que ainda não existe (próximas fatias)
 
-Lista de compras da semana e apagar a conta pelo app — na ordem do briefing, seção 11.
+Apagar a conta pelo app — briefing, seção 10.
 
 ## IA (só VIP)
 

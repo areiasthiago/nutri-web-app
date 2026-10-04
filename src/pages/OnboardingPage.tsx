@@ -339,9 +339,12 @@ function DoneStep({ onBack, onNext }: StepProps) {
         <li>
           <strong>Acompanhe a evolução</strong> em Estatísticas, e compartilhe quando mandar bem.
         </li>
+        <li>
+          <strong>Faça as compras</strong> com a Lista de compras da semana, que soma o que a casa toda come.
+        </li>
       </ul>
       <p className="muted">
-        Meu plano, Minha casa, Estatísticas e Minha conta ficam no menu ☰. Esta apresentação também, em "Primeiros
+        Meu plano, Minha casa, Lista de compras, Estatísticas e Minha conta ficam no menu ☰. Esta apresentação também, em "Primeiros
         passos".
       </p>
       <StepNav onBack={onBack} onNext={onNext} nextLabel="Ir para Hoje" />

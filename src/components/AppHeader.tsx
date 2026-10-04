@@ -80,6 +80,9 @@ export function AppHeader() {
             <Link to="/casa" className="account-menu-item" onClick={() => setMenuOpen(false)}>
               Minha casa
             </Link>
+            <Link to="/compras" className="account-menu-item" onClick={() => setMenuOpen(false)}>
+              Lista de compras
+            </Link>
             <Link to="/comecar" className="account-menu-item" onClick={() => setMenuOpen(false)}>
               Primeiros passos
             </Link>
