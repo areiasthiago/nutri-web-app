@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import alface from '../assets/mascots/alface.webp'
 import cenoura from '../assets/mascots/cenoura.webp'
@@ -12,9 +13,41 @@ import { timezoneOptions } from '../lib/timezones'
 
 // Primeiros passos: apresentação em sequência para conta nova, mostrando tudo o
 // que dá para cadastrar além do plano. O passo fica salvo no perfil; sair para
-// cadastrar o plano ou a casa e voltar continua de onde parou.
+// cadastrar o plano ou a casa e voltar continua de onde parou. Todo passo
+// termina com a mesma linha "← Voltar | Continuar".
 
 const STEPS: OnboardingStep[] = ['boas-vindas', 'nome', 'plano', 'notificacoes', 'casa', 'pronto']
+
+type StepProps = {
+  onBack: () => void
+  onNext: () => void
+}
+
+/** Linha de navegação, igual em todos os passos. */
+function StepNav({
+  onBack,
+  onNext,
+  nextLabel = 'Continuar',
+  busy = false,
+}: {
+  onBack?: () => void
+  onNext: () => void
+  nextLabel?: string
+  busy?: boolean
+}) {
+  return (
+    <div className="step-nav">
+      {onBack && (
+        <button type="button" className="btn btn-outline-neutral" onClick={onBack}>
+          ← Voltar
+        </button>
+      )}
+      <button type="button" className="btn btn-primary" onClick={onNext} disabled={busy}>
+        {nextLabel}
+      </button>
+    </div>
+  )
+}
 
 export function OnboardingPage() {
   const navigate = useNavigate()
@@ -29,12 +62,15 @@ export function OnboardingPage() {
   if (!step) return <div className="page" />
   const index = STEPS.indexOf(step)
 
-  function go(next: OnboardingStep) {
-    setStep(next)
+  function go(target: OnboardingStep) {
+    setStep(target)
     window.scrollTo({ top: 0 })
-    void saveProfile({ onboarding_step: next })
+    void saveProfile({ onboarding_step: target })
   }
-  const next = () => go(STEPS[Math.min(index + 1, STEPS.length - 1)])
+  const nav: StepProps = {
+    onBack: () => go(STEPS[Math.max(index - 1, 0)]),
+    onNext: () => go(STEPS[Math.min(index + 1, STEPS.length - 1)]),
+  }
 
   /** Sai para outra tela guardando o passo, para voltar a ele depois. */
   async function leaveTo(path: string) {
@@ -62,25 +98,23 @@ export function OnboardingPage() {
         )}
       </div>
 
-      {step === 'boas-vindas' && <Welcome onNext={next} />}
-      {step === 'nome' && <NameStep onNext={next} />}
-      {step === 'plano' && <PlanStep onNext={next} onLeave={() => leaveTo('/plano/novo')} />}
-      {step === 'notificacoes' && <NotificationsStep onNext={next} />}
-      {step === 'casa' && <HouseStep onNext={next} onLeave={() => leaveTo('/casa?de=comecar')} />}
-      {step === 'pronto' && <DoneStep onFinish={finish} />}
-
-      {index > 0 && step !== 'pronto' && (
-        <button type="button" className="btn-link onboarding-back" onClick={() => go(STEPS[index - 1])}>
-          ← Voltar
-        </button>
-      )}
+      {step === 'boas-vindas' && <Welcome onNext={nav.onNext} />}
+      {step === 'nome' && <NameStep {...nav} />}
+      {step === 'plano' && <PlanStep {...nav} onLeave={() => leaveTo('/plano/novo?de=comecar')} />}
+      {step === 'notificacoes' && <NotificationsStep {...nav} />}
+      {step === 'casa' && <HouseStep {...nav} onLeave={() => leaveTo('/casa?de=comecar')} />}
+      {step === 'pronto' && <DoneStep onBack={nav.onBack} onNext={finish} />}
     </div>
   )
 }
 
+function Step({ children }: { children: ReactNode }) {
+  return <section className="onboarding-step">{children}</section>
+}
+
 function Welcome({ onNext }: { onNext: () => void }) {
   return (
-    <section className="onboarding-step">
+    <Step>
       <div className="onboarding-mascots" aria-hidden="true">
         <img src={alface} alt="" />
         <img src={tomate} alt="" />
@@ -92,27 +126,28 @@ function Welcome({ onNext }: { onNext: () => void }) {
         de comer e de beber água e acompanha a sua evolução.
       </p>
       <p className="muted">Em poucos passos fica tudo pronto. Leva uns 3 minutos.</p>
-      <button type="button" className="btn btn-primary" onClick={onNext}>
-        Começar
-      </button>
-    </section>
+      <StepNav onNext={onNext} nextLabel="Começar" />
+    </Step>
   )
 }
 
-function NameStep({ onNext }: { onNext: () => void }) {
+function NameStep({ onBack, onNext }: StepProps) {
   const { profile, saveProfile } = useProfile()
   const [name, setName] = useState(profile.display_name ?? '')
   const [timezone, setTimezone] = useState(profile.timezone)
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function save() {
+    setBusy(true)
     const r = await saveProfile({ display_name: name.trim() || null, timezone })
+    setBusy(false)
     if (r.error) setError(r.error)
     else onNext()
   }
 
   return (
-    <section className="onboarding-step">
+    <Step>
       <h1>Como quer ser chamado?</h1>
       <p className="muted">Para a saudação da tela Hoje.</p>
       <label className="field">
@@ -131,14 +166,12 @@ function NameStep({ onNext }: { onNext: () => void }) {
         <small className="muted">Os horários das refeições e dos lembretes seguem este fuso.</small>
       </label>
       {error && <p className="banner banner-error">{error}</p>}
-      <button type="button" className="btn btn-primary" onClick={save}>
-        Continuar
-      </button>
-    </section>
+      <StepNav onBack={onBack} onNext={save} busy={busy} />
+    </Step>
   )
 }
 
-function PlanStep({ onNext, onLeave }: { onNext: () => void; onLeave: () => void }) {
+function PlanStep({ onBack, onNext, onLeave }: StepProps & { onLeave: () => void }) {
   const [meals, setMeals] = useState<number | null | undefined>(undefined)
 
   useEffect(() => {
@@ -152,40 +185,32 @@ function PlanStep({ onNext, onLeave }: { onNext: () => void; onLeave: () => void
   }, [])
 
   return (
-    <section className="onboarding-step">
+    <Step>
       <h1>Seu plano alimentar</h1>
-      <p>
-        É a base de tudo: as refeições do dia, a meta de água, os lembretes e as estatísticas vêm dele.
-      </p>
+      <p>É a base de tudo: as refeições do dia, a meta de água, os lembretes e as estatísticas vêm dele.</p>
       {meals === undefined ? (
         <p className="muted">Carregando…</p>
       ) : meals ? (
-        <>
-          <p className="onboarding-ok">
-            Plano cadastrado: {meals} {meals === 1 ? 'refeição' : 'refeições'}.
-          </p>
-          <button type="button" className="btn btn-primary" onClick={onNext}>
-            Continuar
-          </button>
-        </>
+        <p className="onboarding-ok">
+          Plano cadastrado: {meals} {meals === 1 ? 'refeição' : 'refeições'}.
+        </p>
       ) : (
         <>
           <p className="muted">
-            Envie o PDF do nutricionista: o app lê, você confere e só então salva. Se preferir, monte à mão.
+            Envie o PDF do nutricionista: o app lê, você confere e só então salva. Se preferir, monte à mão. Também dá
+            para fazer depois, em Meu plano.
           </p>
-          <button type="button" className="btn btn-primary" onClick={onLeave}>
+          <button type="button" className="btn btn-outline-neutral step-action" onClick={onLeave}>
             Cadastrar meu plano
-          </button>
-          <button type="button" className="btn btn-outline-neutral" onClick={onNext}>
-            Fazer depois
           </button>
         </>
       )}
-    </section>
+      <StepNav onBack={onBack} onNext={onNext} />
+    </Step>
   )
 }
 
-function NotificationsStep({ onNext }: { onNext: () => void }) {
+function NotificationsStep({ onBack, onNext }: StepProps) {
   const support = pushSupport()
   const [state, setState] = useState<'checking' | 'off' | 'on' | 'denied'>(() =>
     !support.ok ? 'off' : Notification.permission === 'denied' ? 'denied' : 'checking',
@@ -217,13 +242,13 @@ function NotificationsStep({ onNext }: { onNext: () => void }) {
   }
 
   return (
-    <section className="onboarding-step">
+    <Step>
       <h1>Lembretes no celular</h1>
       <p>
         Com as notificações ativas, o app avisa na hora de cada refeição e de beber água, mesmo fechado. Se a refeição
         não for registrada, lembra mais uma vez 30 minutos depois. À noite fica em silêncio.
       </p>
-      <p className="muted">Dá para ajustar o que avisar e o horário de silêncio em Minha conta.</p>
+      <p className="muted">Dá para ativar depois e ajustar o que avisar e o horário de silêncio em Minha conta.</p>
 
       {!support.ok ? (
         <p className="banner banner-attention">
@@ -239,20 +264,18 @@ function NotificationsStep({ onNext }: { onNext: () => void }) {
       ) : state === 'on' ? (
         <p className="onboarding-ok">Notificações ativas neste aparelho.</p>
       ) : state === 'off' ? (
-        <button type="button" className="btn btn-primary" onClick={enable} disabled={busy}>
+        <button type="button" className="btn btn-outline-neutral step-action" onClick={enable} disabled={busy}>
           {busy ? 'Ativando…' : 'Ativar notificações'}
         </button>
       ) : null}
       {error && <p className="banner banner-error">Não foi possível ativar agora. Tente de novo.</p>}
 
-      <button type="button" className={state === 'on' ? 'btn btn-primary' : 'btn btn-outline-neutral'} onClick={onNext}>
-        {state === 'on' ? 'Continuar' : 'Agora não'}
-      </button>
-    </section>
+      <StepNav onBack={onBack} onNext={onNext} />
+    </Step>
   )
 }
 
-function HouseStep({ onNext, onLeave }: { onNext: () => void; onLeave: () => void }) {
+function HouseStep({ onBack, onNext, onLeave }: StepProps & { onLeave: () => void }) {
   const [count, setCount] = useState<number | null>(null)
 
   useEffect(() => {
@@ -266,48 +289,39 @@ function HouseStep({ onNext, onLeave }: { onNext: () => void; onLeave: () => voi
   }, [])
 
   return (
-    <section className="onboarding-step">
+    <Step>
       <h1>Quem mora com você?</h1>
       <p>
         Cadastre as pessoas da casa para a lista de compras da semana sair com a quantidade certa para todos. Quem tem
         plano de nutricionista pode ter o plano cadastrado também, por PDF ou à mão, se você quiser; quem não tem entra
         pela comida da casa.
       </p>
-      <p className="muted">Ninguém além de você precisa de conta. Dá para fazer depois em Minha casa, no menu ☰.</p>
+      <p className="muted">
+        Ninguém além de você precisa de conta. Mora sozinho(a) ou prefere fazer depois? É só continuar: Minha casa fica no
+        menu ☰.
+      </p>
       {count === null ? (
         <p className="muted">Carregando…</p>
-      ) : count > 0 ? (
-        <>
-          <p className="onboarding-ok">
-            {count} {count === 1 ? 'pessoa cadastrada' : 'pessoas cadastradas'}.
-          </p>
-          <button type="button" className="btn btn-primary" onClick={onNext}>
-            Continuar
-          </button>
-          <button type="button" className="btn btn-outline-neutral" onClick={onLeave}>
-            Ver minha casa
-          </button>
-        </>
       ) : (
         <>
-          <button type="button" className="btn btn-primary" onClick={onLeave}>
-            Cadastrar minha casa
-          </button>
-          <button type="button" className="btn btn-outline-neutral" onClick={onNext}>
-            Moro sozinho(a)
-          </button>
-          <button type="button" className="btn-link" onClick={onNext}>
-            Fazer depois
+          {count > 0 && (
+            <p className="onboarding-ok">
+              {count} {count === 1 ? 'pessoa cadastrada' : 'pessoas cadastradas'}.
+            </p>
+          )}
+          <button type="button" className="btn btn-outline-neutral step-action" onClick={onLeave}>
+            {count > 0 ? 'Ver minha casa' : 'Cadastrar minha casa'}
           </button>
         </>
       )}
-    </section>
+      <StepNav onBack={onBack} onNext={onNext} />
+    </Step>
   )
 }
 
-function DoneStep({ onFinish }: { onFinish: () => void }) {
+function DoneStep({ onBack, onNext }: StepProps) {
   return (
-    <section className="onboarding-step">
+    <Step>
       <img className="onboarding-hero" src={cenoura} alt="Cenoura fazendo joinha com as duas mãos" />
       <h1>Tudo pronto!</h1>
       <p>No dia a dia, é só isto:</p>
@@ -330,9 +344,7 @@ function DoneStep({ onFinish }: { onFinish: () => void }) {
         Meu plano, Minha casa, Estatísticas e Minha conta ficam no menu ☰. Esta apresentação também, em "Primeiros
         passos".
       </p>
-      <button type="button" className="btn btn-primary" onClick={onFinish}>
-        Ir para Hoje
-      </button>
-    </section>
+      <StepNav onBack={onBack} onNext={onNext} nextLabel="Ir para Hoje" />
+    </Step>
   )
 }

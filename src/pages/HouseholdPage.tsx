@@ -33,6 +33,7 @@ import type {
   MemberInput,
 } from '../lib/household'
 import { fetchActivePlan, formatNumber } from '../lib/plan'
+import { useProfile } from '../lib/profile'
 
 // "Minha casa": quem mora junto, a comida da casa e os extras. Serve para a
 // lista de compras da semana; ninguém aqui faz login nem recebe lembrete.
@@ -45,6 +46,14 @@ const parseNum = (t: string) => {
 
 export function HouseholdPage() {
   const fromOnboarding = useSearchParams()[0].get('de') === 'comecar'
+  const navigate = useNavigate()
+  const { saveProfile } = useProfile()
+
+  /** Vindo dos primeiros passos: segue direto para o passo final. */
+  async function continueOnboarding() {
+    await saveProfile({ onboarding_step: 'pronto' })
+    navigate('/comecar')
+  }
   const [members, setMembers] = useState<HouseholdMember[] | null>(null)
   const [foods, setFoods] = useState<HouseFood[] | null>(null)
   const [extras, setExtras] = useState<HouseholdExtra[] | null>(null)
@@ -95,6 +104,18 @@ export function HouseholdPage() {
       ) : (
         <>
           <MembersSection members={members} onChange={reload} />
+          {fromOnboarding && (
+            <div className="onboarding-continue">
+              <p className="muted">
+                {members.length
+                  ? 'Cadastrou todo mundo? A comida da casa e os extras, abaixo, dá para preencher agora ou depois.'
+                  : 'Pode cadastrar as pessoas agora ou depois, pelo menu ☰.'}
+              </p>
+              <button type="button" className="btn btn-primary" onClick={continueOnboarding}>
+                Continuar
+              </button>
+            </div>
+          )}
           <HouseFoodsSection foods={foods} onChange={reload} />
           <ExtrasSection extras={extras} onChange={reload} />
         </>

@@ -2231,7 +2231,32 @@ body.with-bottom-nav .editor-actions {
   line-height: 1.45;
 }
 
-.onboarding-back {
-  align-self: flex-start;
-  margin-top: 16px;
+.step-nav {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.step-nav .btn {
+  flex: 1;
+}
+
+.step-action {
+  width: 100%;
+}
+
+.onboarding-continue {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: -12px 0 28px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--info-bg);
+}
+
+.onboarding-continue p.muted {
+  margin: 0;
+  font-size: 14px;
+  color: var(--info-text);
 }

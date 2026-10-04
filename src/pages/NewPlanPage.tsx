@@ -230,8 +230,8 @@ export function NewPlanPage() {
   // -------------------------------------------------------------------------
   return (
     <div className="page">
-      <Link to={owner.withOwner('/plano')} className="back-link">
-        ← Voltar para {owner.title}
+      <Link to={owner.backFromNew.path} className="back-link">
+        ← Voltar para {owner.backFromNew.label}
       </Link>
       <h1 className="page-title">{owner.memberId ? `Novo plano: ${owner.title.replace('Plano de ', '')}` : 'Novo plano'}</h1>
 
