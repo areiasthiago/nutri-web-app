@@ -2411,3 +2411,71 @@ body.with-bottom-nav .editor-actions {
   font-size: 13px;
   line-height: 1.4;
 }
+
+.shopping-sources {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shopping-sources p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.shopping-sources-title {
+  color: var(--text-muted);
+}
+
+.shopping-sources ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shopping-sources .btn-link {
+  font-size: 13px;
+}
+
+.ingredient-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.ingredient-editor p.muted {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.ingredient-row {
+  display: grid;
+  grid-template-columns: 1fr 64px 64px 32px;
+  gap: 6px;
+  align-items: center;
+}
+
+.ingredient-row input,
+.ingredient-row select {
+  min-width: 0;
+  min-height: 40px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.shopping-details p.shopping-plus {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ALL_HOME_MEALS, toggleHomeMeal } from './household'
-import { buildShoppingList, defaultYield, foodKey, formatAmount, mealSlot, weekStartFor } from './shopping'
+import { buildShoppingList, defaultYield, foodKey, formatAmount, itemKey, mealSlot, ruleIngredients, shoppingName, weekStartFor } from './shopping'
 import type { ShoppingInput } from './shopping'
 
 // Casa FICTÍCIA: o usuário com plano, a Ana com plano e o Pedro (7 anos) sem
@@ -43,8 +43,8 @@ describe('soma da semana', () => {
     const { lines } = buildShoppingList(
       base({
         planPeople: [
-          { label: 'Você', homeMeals: null, meals: [{ name: 'Almoço', time: '12:30:00', items: [{ food: 'Arroz branco', qty_value: 81, qty_unit: 'g' }, { food: 'Banana', qty_value: 1, qty_unit: 'un' }] }] },
-          { label: 'Ana', homeMeals: null, meals: [{ name: 'Almoço', time: '12:00:00', items: [{ food: 'arroz  branco', qty_value: 54, qty_unit: 'g' }] }] },
+          { label: 'Você', homeMeals: null, meals: [{ name: 'Almoço', time: '12:30:00', items: [{ qty_text: '', food: 'Arroz branco', qty_value: 81, qty_unit: 'g' }, { qty_text: '', food: 'Banana', qty_value: 1, qty_unit: 'un' }] }] },
+          { label: 'Ana', homeMeals: null, meals: [{ name: 'Almoço', time: '12:00:00', items: [{ qty_text: '', food: 'arroz  branco', qty_value: 54, qty_unit: 'g' }] }] },
         ],
       }),
     )
@@ -62,7 +62,7 @@ describe('soma da semana', () => {
   it('plano de quem almoça fora em dias úteis conta só os dias em casa', () => {
     const { lines } = buildShoppingList(
       base({
-        planPeople: [{ label: 'Ana', homeMeals: pedroMeals, meals: [{ name: 'Almoço', time: '12:00:00', items: [{ food: 'Banana', qty_value: 1, qty_unit: 'un' }] }] }],
+        planPeople: [{ label: 'Ana', homeMeals: pedroMeals, meals: [{ name: 'Almoço', time: '12:00:00', items: [{ qty_text: '', food: 'Banana', qty_value: 1, qty_unit: 'un' }] }] }],
       }),
     )
     expect(lines[0].total).toBe(2)
@@ -99,7 +99,7 @@ describe('soma da semana', () => {
   it('rendimento escolhido pela pessoa vale sobre o padrão', () => {
     const { lines } = buildShoppingList(
       base({
-        planPeople: [{ label: 'Você', homeMeals: null, meals: [{ name: 'Jantar', time: '20:00:00', items: [{ food: 'Frango', qty_value: 100, qty_unit: 'g' }] }] }],
+        planPeople: [{ label: 'Você', homeMeals: null, meals: [{ name: 'Jantar', time: '20:00:00', items: [{ qty_text: '', food: 'Frango', qty_value: 100, qty_unit: 'g' }] }] }],
         yields: new Map([['frango', 0.5]]),
       }),
     )
@@ -111,13 +111,13 @@ describe('soma da semana', () => {
     const { lines, unquantified } = buildShoppingList(
       base({
         planPeople: [
-          { label: 'Você', homeMeals: null, meals: [{ name: 'Almoço', time: '12:00:00', items: [{ food: 'Salada verde', qty_value: null, qty_unit: null }] }] },
-          { label: 'Ana', homeMeals: null, meals: [{ name: 'Almoço', time: '12:00:00', items: [{ food: 'Salada Verde', qty_value: null, qty_unit: null }] }] },
+          { label: 'Você', homeMeals: null, meals: [{ name: 'Almoço', time: '12:00:00', items: [{ qty_text: '', food: 'Salada verde', qty_value: null, qty_unit: null }] }] },
+          { label: 'Ana', homeMeals: null, meals: [{ name: 'Almoço', time: '12:00:00', items: [{ qty_text: '', food: 'Salada Verde', qty_value: null, qty_unit: null }] }] },
         ],
       }),
     )
     expect(lines).toEqual([])
-    expect(unquantified).toEqual([{ key: 'salada verde', name: 'Salada verde', who: ['Você', 'Ana'] }])
+    expect(unquantified).toMatchObject([{ key: 'salada verde', name: 'Salada verde', who: ['Você', 'Ana'] }])
   })
 })
 
@@ -134,5 +134,82 @@ describe('exibição e semana', () => {
     expect(weekStartFor('2026-10-04', 6)).toBe('2026-10-10')
     expect(weekStartFor('2026-10-10', 6)).toBe('2026-10-10')
     expect(weekStartFor('2026-10-04', 0)).toBe('2026-10-04')
+  })
+})
+
+describe('itens do plano viram ingredientes de mercado', () => {
+  it('regras (sem IA): tiram o preparo e separam os ingredientes', () => {
+    expect(shoppingName('Peito de frango grelhado')).toBe('Peito de frango')
+    expect(shoppingName('Ovo mexido')).toBe('Ovo')
+    expect(shoppingName('Batata doce cozida (em cubos)')).toBe('Batata doce')
+    expect(ruleIngredients({ food: 'Ovos mexidos', qty_text: '2 unidades', qty_value: 2, qty_unit: 'un' })).toEqual([
+      { name: 'Ovo', qty_value: 2, qty_unit: 'un' },
+    ])
+    expect(ruleIngredients({ food: 'Omelete com tomate', qty_text: '2 ovos', qty_value: null, qty_unit: null })).toEqual([
+      { name: 'Ovo', qty_value: 2, qty_unit: 'un' },
+      { name: 'Tomate', qty_value: null, qty_unit: null },
+    ])
+    expect(ruleIngredients({ food: 'Salada de tomate com cheiro verde e orégano', qty_text: 'à vontade', qty_value: null, qty_unit: null }).map((i) => i.name)).toEqual([
+      'Tomate', 'Cheiro verde', 'Orégano',
+    ])
+  })
+
+  it('preparos diferentes do mesmo alimento viram uma linha só (em unidades)', () => {
+    const { lines } = buildShoppingList(
+      base({
+        planPeople: [
+          {
+            label: 'Você',
+            homeMeals: null,
+            meals: [
+              { name: 'Café', time: '07:00:00', items: [{ qty_text: '2 unidades', food: 'Ovo mexido', qty_value: 2, qty_unit: 'un' }] },
+              { name: 'Lanche', time: '16:00:00', items: [{ qty_text: '1 unidade', food: 'Ovo cozido', qty_value: 1, qty_unit: 'un' }] },
+            ],
+          },
+        ],
+      }),
+    )
+    expect(lines).toHaveLength(1)
+    expect(lines[0]).toMatchObject({ name: 'Ovo', unit: 'un', total: 21 })
+    expect(lines[0].sources.map((s) => s.food)).toEqual(['Ovo mexido', 'Ovo cozido'])
+  })
+
+  it('ingredientes da IA (ou à mão) já vêm em cru: sem rendimento, e somam com os outros', () => {
+    const omelete = { qty_text: '1 unidade', food: 'Omelete com 2 ovos e tomate', qty_value: 1, qty_unit: 'un',
+      ingredients: [{ name: 'Ovo', qty_value: 2, qty_unit: 'un' as const }, { name: 'Tomate', qty_value: 30, qty_unit: 'g' as const }, { name: 'Orégano', qty_value: null, qty_unit: null }] }
+    const { lines, unquantified } = buildShoppingList(
+      base({
+        planPeople: [
+          { label: 'Você', homeMeals: null, meals: [{ name: 'Jantar', time: '20:00:00', items: [omelete] }] },
+          { label: 'Ana', homeMeals: null, meals: [{ name: 'Café', time: '07:00:00', items: [{ qty_text: '1 unidade', food: 'Ovo cozido', qty_value: 1, qty_unit: 'un' }] }] },
+        ],
+      }),
+    )
+    expect(lines.find((l) => l.name === 'Ovo')!.total).toBe(14 + 7)
+    expect(lines.find((l) => l.name === 'Tomate')).toMatchObject({ total: 210, yield: 1, cooked: false })
+    expect(unquantified.map((u) => u.name)).toEqual(['Orégano'])
+    expect(lines.find((l) => l.name === 'Tomate')!.sources[0].itemKey).toBe(itemKey('Omelete com 2 ovos e tomate', '1 unidade'))
+  })
+})
+
+describe('mesmo produto com e sem quantidade', () => {
+  it('vira uma linha só, marcada como "+"', () => {
+    const { lines, unquantified } = buildShoppingList(
+      base({
+        planPeople: [
+          {
+            label: 'Você',
+            homeMeals: null,
+            meals: [
+              { name: 'Jantar', time: '20:00:00', items: [{ qty_text: '2 ovos', food: 'Omelete', qty_value: null, qty_unit: null, ingredients: [{ name: 'Tomate', qty_value: 60, qty_unit: 'g' }] }] },
+              { name: 'Almoço', time: '12:00:00', items: [{ qty_text: 'à vontade', food: 'Salada de tomate', qty_value: null, qty_unit: null, ingredients: [{ name: 'Tomate', qty_value: null, qty_unit: null }] }] },
+            ],
+          },
+        ],
+      }),
+    )
+    expect(unquantified).toEqual([])
+    expect(lines).toMatchObject([{ name: 'Tomate', total: 420, plusUnquantified: ['Você'] }])
+    expect(lines[0].sources.map((x) => x.food)).toEqual(['Omelete', 'Salada de tomate'])
   })
 })

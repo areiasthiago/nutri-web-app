@@ -167,6 +167,12 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
   quantidade numérica ficam à parte. Semana a partir do dia de compras (padrão sábado,
   `profiles.shopping_day`); o que já foi comprado fica em `shopping_checks`. Regras em
   `src/lib/shopping.ts` (testes em `src/lib/shopping.test.ts`).
+- A lista é por item de mercado: cada item do plano vira ingredientes de compra ("Ovo mexido" e
+  "Omelete de 2 ovos" → Ovo, em unidades; "Salada de tomate com cheiro verde" → Tomate + Cheiro
+  verde). Para VIP, a IA (modo `ingredients` da Edge Function `ai-extract-plan`) separa e dá a
+  quantidade em cru; sem VIP, regras automáticas (`ruleIngredients`). Guardado por item em
+  `ingredient_maps`; dá para ajustar à mão na lista ("Ajustar ingredientes"), e a IA nunca
+  sobrescreve o ajuste.
 
 ## O que ainda não existe (próximas fatias)
 

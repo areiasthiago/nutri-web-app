@@ -55,6 +55,7 @@ begin
   insert into public.household_extras (name, qty_value, qty_unit) values ('Leite', 6, 'L');
   insert into public.food_yields (food_key, yield) values ('arroz', 2.5);
   insert into public.shopping_checks (week_start, item_key) values (current_date, 'arroz|g');
+  insert into public.ingredient_maps (item_key, food, ingredients, source) values ('ovo mexido|2 un', 'Ovo mexido', '[{"name":"Ovo","qty_value":2,"qty_unit":"un"}]', 'manual');
   perform public.replace_active_plan('{"origin":"manual","meals":[{"name":"Almoço","time":"12:00"}]}'::jsonb, member_a);
   select count(*) into n from public.plans; report := report || 'A vê planos: ' || n || '; ';
   select count(*) into n from public.ai_plan_extractions; report := report || 'A vê a própria leitura PDF: ' || n || '; ';
@@ -126,6 +127,7 @@ begin
     report := report || 'B troca o plano da pessoa de A: bloqueado (' || sqlstate || '); ';
   end;
   select count(*) into n from public.food_yields; report := report || 'B vê rendimentos de A: ' || n || '; ';
+  select count(*) into n from public.ingredient_maps; report := report || 'B vê ingredientes de A: ' || n || '; ';
   select count(*) into n from public.shopping_checks; report := report || 'B vê lista de compras de A: ' || n || '; ';
   delete from public.shopping_checks; get diagnostics n = row_count; report := report || 'B apaga marcações de A: ' || n || '; ';
   select count(*) into n from public.custom_meals; report := report || 'B vê lista Já comi antes de A: ' || n || '; ';

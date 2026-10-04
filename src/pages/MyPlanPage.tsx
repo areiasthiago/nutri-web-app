@@ -18,6 +18,7 @@ import {
 import type { AiAccess, SavedExtraction } from '../lib/ai'
 import { fetchActivePlan, formatNumber, formatTime, sumItems } from '../lib/plan'
 import { usePlanOwner } from '../lib/planOwner'
+import { prepareIngredientsInBackground } from '../lib/shoppingData'
 import type { Plan } from '../lib/plan'
 import { draftFromExtracted, draftFromPlan, planToExtracted, saveDraftAsActivePlan } from '../lib/planDraft'
 import type { ExtractedPlan, PlanDraft } from '../lib/planDraft'
@@ -106,6 +107,8 @@ export function MyPlanPage() {
       return
     }
     if (extractionId) await deleteExtraction(extractionId)
+    // Ingredientes da lista de compras em segundo plano (só VIP; sem VIP, nada acontece).
+    void prepareIngredientsInBackground()
     navigate(owner.homePath, { replace: true })
   }
 

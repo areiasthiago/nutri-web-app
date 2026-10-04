@@ -19,6 +19,7 @@ import { parsePlanText } from '../lib/planParser'
 import type { ParseResult } from '../lib/planParser'
 import { draftFromExtracted, emptyDraft, saveDraftAsActivePlan } from '../lib/planDraft'
 import { usePlanOwner } from '../lib/planOwner'
+import { prepareIngredientsInBackground } from '../lib/shoppingData'
 import type { ExtractedPlan, PlanDraft } from '../lib/planDraft'
 
 // Camadas: 1) leitura no aparelho, sem IA e sem custo; 2) se ficar fraca (ou
@@ -173,6 +174,8 @@ export function NewPlanPage() {
       return
     }
     if (extractionId) await deleteExtraction(extractionId)
+    // Ingredientes da lista de compras em segundo plano (só VIP; sem VIP, nada acontece).
+    void prepareIngredientsInBackground()
     navigate(owner.homePath, { replace: true })
   }
 

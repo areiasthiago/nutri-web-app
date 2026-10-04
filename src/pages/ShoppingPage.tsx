@@ -2,9 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { localDateIn } from '../lib/plan'
 import { useProfile } from '../lib/profile'
-import { SHOPPING_DAYS, buildShoppingList, defaultYield, foodKey, formatAmount, weekStartFor } from '../lib/shopping'
-import type { ShoppingInput, ShoppingLine } from '../lib/shopping'
-import { clearChecks, fetchChecks, fetchShoppingInput, saveYield, setChecked } from '../lib/shoppingData'
+import { SHOPPING_DAYS, buildShoppingList, defaultYield, foodKey, formatAmount, itemKey, ruleIngredients, weekStartFor } from '../lib/shopping'
+import type { Ingredient, ItemSource, ShoppingInput, ShoppingLine, Unit } from '../lib/shopping'
+import {
+  canUseAi,
+  clearChecks,
+  fetchChecks,
+  fetchShoppingInput,
+  fillIngredientsWithAi,
+  itemsWithoutIngredients,
+  saveManualIngredients,
+  saveYield,
+  setChecked,
+} from '../lib/shoppingData'
 
 // Lista de compras da semana: o total da casa (planos, pessoas sem plano,
 // comida da casa e extras), com a parte de cada um, em cru. Estimativa para
@@ -27,6 +37,8 @@ export function ShoppingPage() {
   const [checks, setChecks] = useState<Set<string> | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  // IA (só VIP): separando ingredientes dos itens que ainda não têm.
+  const [aiState, setAiState] = useState<'idle' | 'running' | 'failed'>('idle')
 
   const today = localDateIn(profile.timezone)
   const weekStart = weekStartFor(today, profile.shopping_day)
@@ -34,7 +46,25 @@ export function ShoppingPage() {
   useEffect(() => {
     let active = true
     fetchShoppingInput()
-      .then((i) => active && setInput(i))
+      .then(async (i) => {
+        if (!active) return
+        setInput(i)
+        // Itens sem ingredientes: a IA separa, se a pessoa for VIP. Sem VIP, ficam as regras.
+        const missing = itemsWithoutIngredients(i)
+        if (!missing.length || !(await canUseAi())) return
+        if (!active) return
+        setAiState('running')
+        try {
+          await fillIngredientsWithAi(missing)
+          const fresh = await fetchShoppingInput()
+          if (active) {
+            setInput(fresh)
+            setAiState('idle')
+          }
+        } catch {
+          if (active) setAiState('failed')
+        }
+      })
       .catch(() => active && setError('Não foi possível montar a lista agora. Confira a internet e tente de novo.'))
     return () => {
       active = false
@@ -72,6 +102,22 @@ export function ShoppingPage() {
     if (!window.confirm('Desmarcar tudo e recomeçar a lista desta semana?')) return
     await clearChecks(weekStart)
     setChecks(new Set())
+  }
+
+  /** Ingredientes atuais de um item do plano (os guardados ou, sem eles, os das regras). */
+  function currentIngredients(source: ItemSource): Ingredient[] {
+    for (const person of input?.planPeople ?? []) {
+      for (const meal of person.meals) {
+        const item = meal.items.find((i) => itemKey(i.food, i.qty_text) === source.itemKey)
+        if (item) return item.ingredients ?? ruleIngredients(item)
+      }
+    }
+    return []
+  }
+
+  async function saveIngredients(source: ItemSource, ingredients: Ingredient[]) {
+    await saveManualIngredients(source, ingredients)
+    setInput(await fetchShoppingInput())
   }
 
   async function changeYield(line: ShoppingLine, value: number | null) {
@@ -131,6 +177,17 @@ export function ShoppingPage() {
         </section>
       ) : (
         <>
+          {aiState === 'running' && (
+            <p className="banner banner-info" aria-live="polite">
+              Separando os itens do plano em ingredientes de mercado com IA… A lista se atualiza sozinha.
+            </p>
+          )}
+          {aiState === 'failed' && (
+            <p className="banner banner-attention">
+              A IA não conseguiu separar os ingredientes agora; a lista usa as regras automáticas. Você pode ajustar
+              cada item tocando nele.
+            </p>
+          )}
           <p className="shopping-progress">
             {done} de {total} {total === 1 ? 'item comprado' : 'itens comprados'}
           </p>
@@ -150,10 +207,20 @@ export function ShoppingPage() {
                     />
                     <button type="button" className="shopping-name" onClick={() => setOpen(isOpen ? null : line.key)} aria-expanded={isOpen}>
                       <span>{line.name}</span>
-                      <span className="shopping-amount">{formatAmount(line.total, line.unit)}</span>
+                      <span className="shopping-amount">
+                        {formatAmount(line.total, line.unit)}
+                        {line.plusUnquantified.length > 0 && ' +'}
+                      </span>
                     </button>
                   </div>
-                  {isOpen && <LineDetails line={line} onYield={(v) => changeYield(line, v)} />}
+                  {isOpen && (
+                    <LineDetails
+                      line={line}
+                      onYield={(v) => changeYield(line, v)}
+                      ingredientsOf={currentIngredients}
+                      onSaveIngredients={saveIngredients}
+                    />
+                  )}
                 </li>
               )
             })}
@@ -167,15 +234,21 @@ export function ShoppingPage() {
                 {sortChecked(list.unquantified, 'q|').map((u) => {
                   const key = `q|${u.key}`
                   const checked = checks.has(key)
+                  const isOpen = open === key
                   return (
                     <li key={key} className={`shopping-item${checked ? ' is-checked' : ''}`}>
-                      <label className="shopping-row">
-                        <input type="checkbox" checked={checked} onChange={() => toggle(key)} />
-                        <span className="shopping-name-static">
+                      <div className="shopping-row">
+                        <input type="checkbox" checked={checked} onChange={() => toggle(key)} aria-label={`Comprado: ${u.name}`} />
+                        <button type="button" className="shopping-name" onClick={() => setOpen(isOpen ? null : key)} aria-expanded={isOpen}>
                           <span>{u.name}</span>
                           <span className="shopping-who">{u.who.join(', ')}</span>
-                        </span>
-                      </label>
+                        </button>
+                      </div>
+                      {isOpen && (
+                        <div className="shopping-details">
+                          <Sources sources={u.sources} ingredientsOf={currentIngredients} onSave={saveIngredients} />
+                        </div>
+                      )}
                     </li>
                   )
                 })}
@@ -184,8 +257,8 @@ export function ShoppingPage() {
           )}
 
           <p className="muted shopping-note">
-            Estimativa para a compra, em alimento cru. Toque num item para ver quanto vem de cada pessoa e ajustar o
-            rendimento. As trocas do plano não entram: a lista usa o alimento principal.
+            Estimativa para a compra, em alimento cru. Toque num item para ver quanto vem de cada pessoa, de quais itens
+            do plano ele sai e ajustar os ingredientes. As trocas do plano não entram: a lista usa o alimento principal.
           </p>
           <button type="button" className="btn btn-outline-neutral" onClick={restart} disabled={done === 0}>
             Desmarcar tudo
@@ -196,7 +269,17 @@ export function ShoppingPage() {
   )
 }
 
-function LineDetails({ line, onYield }: { line: ShoppingLine; onYield: (value: number | null) => Promise<void> }) {
+type IngredientProps = {
+  ingredientsOf: (source: ItemSource) => Ingredient[]
+  onSaveIngredients: (source: ItemSource, ingredients: Ingredient[]) => Promise<void>
+}
+
+function LineDetails({
+  line,
+  onYield,
+  ingredientsOf,
+  onSaveIngredients,
+}: { line: ShoppingLine; onYield: (value: number | null) => Promise<void> } & IngredientProps) {
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(yieldLabel(line.yield))
   const [error, setError] = useState(false)
@@ -220,6 +303,13 @@ function LineDetails({ line, onYield }: { line: ShoppingLine; onYield: (value: n
           </li>
         ))}
       </ul>
+      {line.plusUnquantified.length > 0 && (
+        <p className="muted shopping-plus">
+          Mais o que vai sem quantidade definida, à vontade ({line.plusUnquantified.join(', ')}): decida quanto a mais
+          comprar.
+        </p>
+      )}
+      {line.sources.length > 0 && <Sources sources={line.sources} ingredientsOf={ingredientsOf} onSave={onSaveIngredients} />}
       {line.cooked && (
         <div className="shopping-yield">
           {editing ? (
@@ -254,6 +344,144 @@ function LineDetails({ line, onYield }: { line: ShoppingLine; onYield: (value: n
           )}
         </div>
       )}
+    </div>
+  )
+}
+
+/** "Vem de": os itens do plano que formam a linha, cada um com "Ajustar ingredientes". */
+function Sources({
+  sources,
+  ingredientsOf,
+  onSave,
+}: {
+  sources: ItemSource[]
+  ingredientsOf: IngredientProps['ingredientsOf']
+  onSave: IngredientProps['onSaveIngredients']
+}) {
+  const [editing, setEditing] = useState<string | null>(null)
+  return (
+    <div className="shopping-sources">
+      <p className="shopping-sources-title">Vem de:</p>
+      <ul>
+        {sources.map((src) => (
+          <li key={src.itemKey}>
+            {editing === src.itemKey ? (
+              <IngredientEditor
+                source={src}
+                initial={ingredientsOf(src)}
+                onCancel={() => setEditing(null)}
+                onSave={async (ings) => {
+                  await onSave(src, ings)
+                  setEditing(null)
+                }}
+              />
+            ) : (
+              <p>
+                {src.food}
+                {src.qty_text && <span className="muted"> · {src.qty_text}</span>}{' '}
+                <button type="button" className="btn-link" onClick={() => setEditing(src.itemKey)}>
+                  Ajustar ingredientes
+                </button>
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+type Row = { name: string; qty: string; unit: Unit | '' }
+
+/** Ajuste à mão dos ingredientes de uma porção de um item do plano (vale para todos com o mesmo item). */
+function IngredientEditor({
+  source,
+  initial,
+  onSave,
+  onCancel,
+}: {
+  source: ItemSource
+  initial: Ingredient[]
+  onSave: (ingredients: Ingredient[]) => Promise<void>
+  onCancel: () => void
+}) {
+  const [rows, setRows] = useState<Row[]>(() =>
+    (initial.length ? initial : [{ name: '', qty_value: null, qty_unit: null }]).map((i) => ({
+      name: i.name,
+      qty: i.qty_value === null ? '' : String(i.qty_value).replace('.', ','),
+      unit: i.qty_unit ?? '',
+    })),
+  )
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const update = (i: number, change: Partial<Row>) => setRows(rows.map((r, j) => (j === i ? { ...r, ...change } : r)))
+
+  async function save() {
+    const ingredients: Ingredient[] = []
+    for (const r of rows) {
+      if (!r.name.trim()) continue
+      const n = Number(r.qty.replace(',', '.'))
+      const hasQty = r.qty.trim() !== '' && r.unit !== ''
+      if (hasQty && (!Number.isFinite(n) || n <= 0)) return setError(`Quantidade inválida em "${r.name}".`)
+      ingredients.push({ name: r.name.trim().slice(0, 60), qty_value: hasQty ? n : null, qty_unit: hasQty ? (r.unit as Unit) : null })
+    }
+    if (!ingredients.length) return setError('Informe pelo menos um ingrediente.')
+    setSaving(true)
+    try {
+      await onSave(ingredients)
+    } catch {
+      setError('Não foi possível salvar agora.')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="ingredient-editor">
+      <p className="muted">
+        Ingredientes para <strong>uma porção</strong> de "{source.food}"{source.qty_text ? ` (${source.qty_text})` : ''}, em cru,
+        como se compra. Sem quantidade: deixe em branco.
+      </p>
+      {rows.map((r, i) => (
+        <div key={i} className="ingredient-row">
+          <input
+            type="text"
+            value={r.name}
+            onChange={(e) => update(i, { name: e.target.value })}
+            placeholder="Ex.: Ovo"
+            aria-label="Ingrediente"
+            maxLength={60}
+          />
+          <input
+            type="text"
+            inputMode="decimal"
+            value={r.qty}
+            onChange={(e) => update(i, { qty: e.target.value })}
+            placeholder="Qtd."
+            aria-label="Quantidade"
+          />
+          <select value={r.unit} onChange={(e) => update(i, { unit: e.target.value as Row['unit'] })} aria-label="Unidade">
+            <option value="">—</option>
+            <option value="g">g</option>
+            <option value="mL">mL</option>
+            <option value="un">un</option>
+          </select>
+          <button type="button" className="btn-link" onClick={() => setRows(rows.filter((_, j) => j !== i))} aria-label="Tirar">
+            ✕
+          </button>
+        </div>
+      ))}
+      <button type="button" className="btn-link" onClick={() => setRows([...rows, { name: '', qty: '', unit: '' }])}>
+        + Ingrediente
+      </button>
+      {error && <p className="banner banner-error">{error}</p>}
+      <div className="form-actions">
+        <button type="button" className="btn btn-primary btn-small" onClick={save} disabled={saving}>
+          {saving ? 'Salvando…' : 'Salvar'}
+        </button>
+        <button type="button" className="btn btn-outline-neutral btn-small" onClick={onCancel}>
+          Cancelar
+        </button>
+      </div>
     </div>
   )
 }
