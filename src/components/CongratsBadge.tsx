@@ -14,11 +14,11 @@ import { Wordmark } from './Wordmark'
 
 const APP_URL = 'https://areiasthiago.github.io/nutri-web-app/'
 
-/** Um mascote por período: alface no dia, tomate na semana, cenoura (comemorando) no mês. */
+/** Um mascote por período: alface no dia, tomate na semana, cenoura no mês. */
 const MASCOTS: Record<Mascot, { src: string; alt: string }> = {
-  tomate: { src: tomate, alt: 'Tomate sorridente' },
-  alface: { src: alface, alt: 'Alface sorridente de gravatinha' },
-  cenoura: { src: cenoura, alt: 'Cenoura comemorando com os braços para cima' },
+  tomate: { src: tomate, alt: 'Tomate pulando de alegria' },
+  alface: { src: alface, alt: 'Alface de gravatinha acenando' },
+  cenoura: { src: cenoura, alt: 'Cenoura fazendo joinha com as duas mãos' },
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -91,10 +91,12 @@ async function badgeImage(a: Achievement, tiles: StatTileData[]): Promise<File |
   ctx.drawImage(logo, (W - lw) / 2, PAD + 56, lw, lh)
 
   const mascot = await loadImage(MASCOTS[a.mascot].src)
-  const mh = 330
-  const mw = (mascot.width / mascot.height) * mh
-  const mTop = PAD + 200
-  const mx = PAD + 50 + (240 - mw) / 2
+  // Cabe numa área de 270×330, centrado (o tomate de braços abertos é mais largo que alto).
+  const fit = Math.min(270 / mascot.width, 330 / mascot.height)
+  const mw = mascot.width * fit
+  const mh = mascot.height * fit
+  const mTop = PAD + 200 + (330 - mh) / 2
+  const mx = PAD + 30 + (270 - mw) / 2
   ctx.drawImage(mascot, mx, mTop, mw, mh)
 
   const textX = PAD + 330
@@ -102,7 +104,7 @@ async function badgeImage(a: Achievement, tiles: StatTileData[]): Promise<File |
   ctx.font = font(500, 40)
   const lines = wrap(ctx, a.detail, textW)
   const blockH = 72 + lines.length * 54
-  let ty = mTop + mh / 2 - blockH / 2 + 56
+  let ty = PAD + 200 + 165 - blockH / 2 + 56
   ctx.textAlign = 'left'
   ctx.fillStyle = '#7a4600'
   ctx.font = font(800, 62)
