@@ -1461,12 +1461,7 @@ input {
   pointer-events: none;
 }
 
-/* "Não comi" */
-.swap-chip-skip.is-selected {
-  border-color: var(--text-muted);
-  background: var(--text-muted);
-}
-
+/* Alimento não comido (grupo vazio em "Fazer trocas") */
 .meal-item-skipped {
   margin: 2px 0 0;
   font-size: 14px;

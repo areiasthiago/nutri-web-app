@@ -85,7 +85,7 @@ export function OffPlanSheet({
 
   const skippedFor = (itemId: string) => swaps.some((s) => s.item_id === itemId && s.skipped)
 
-  /** "Não comi": o alimento fica de fora e conta zero. */
+  /** Grupo vazio (opção desmarcada): o alimento não foi comido e conta zero. */
   function skipItem(item: MealItem) {
     const others = swaps.filter((s) => s.item_id !== item.id)
     setSwaps([
@@ -271,7 +271,8 @@ export function OffPlanSheet({
                       role="radio"
                       aria-checked={!chosen && !isCustom && !skipped}
                       className={`swap-chip${!chosen && !isCustom && !skipped ? ' is-selected' : ''}`}
-                      onClick={() => chooseSwap(item, '')}
+                      // Tocar de novo na opção selecionada desmarca: grupo vazio = não comeu.
+                      onClick={() => (!chosen && !isCustom && !skipped ? skipItem(item) : chooseSwap(item, ''))}
                     >
                       {item.food}
                       {item.qty_text && ` (${item.qty_text})`}
@@ -283,7 +284,7 @@ export function OffPlanSheet({
                         role="radio"
                         aria-checked={!isCustom && chosen === sub.text}
                         className={`swap-chip${!isCustom && chosen === sub.text ? ' is-selected' : ''}`}
-                        onClick={() => chooseSwap(item, sub.text)}
+                        onClick={() => (!isCustom && chosen === sub.text ? skipItem(item) : chooseSwap(item, sub.text))}
                       >
                         {sub.text}
                       </button>
@@ -293,18 +294,9 @@ export function OffPlanSheet({
                       role="radio"
                       aria-checked={isCustom}
                       className={`swap-chip${isCustom ? ' is-selected' : ''}`}
-                      onClick={() => chooseSwap(item, '', true)}
+                      onClick={() => (isCustom ? skipItem(item) : chooseSwap(item, '', true))}
                     >
                       Outro…
-                    </button>
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={skipped}
-                      className={`swap-chip swap-chip-skip${skipped ? ' is-selected' : ''}`}
-                      onClick={() => skipItem(item)}
-                    >
-                      Não comi
                     </button>
                   </div>
                   {isCustom && (
