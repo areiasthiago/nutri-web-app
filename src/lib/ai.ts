@@ -113,6 +113,12 @@ export async function deleteExtraction(id: string): Promise<void> {
   await client.from('ai_plan_extractions').delete().eq('id', id)
 }
 
-export function formatUsd(n: number): string {
-  return `US$ ${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+/** Quanto de uma cota de US$ `limit` o valor `usd` representa, em % inteiro (mínimo 1% se > 0). */
+export function quotaPercent(usd: number, limit: number): number {
+  if (usd <= 0) return 0
+  if (limit <= 0) return 100
+  return Math.max(1, Math.round((usd / limit) * 100))
 }
+
+/** Custo típico de uma leitura de PDF com IA, para estimar a % da cota antes de ler. */
+export const AI_READ_ESTIMATE_USD = 0.06

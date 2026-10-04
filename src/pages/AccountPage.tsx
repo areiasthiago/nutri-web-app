@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
+import { AiQuotaBar } from '../components/AiQuota'
+import { fetchAiAccess } from '../lib/ai'
+import type { AiAccess } from '../lib/ai'
 import { useProfile } from '../lib/profile'
 
 // Fusos do Brasil. Se o perfil tiver outro (ex.: alguém morando fora), ele
@@ -28,6 +31,15 @@ export function AccountPage() {
   const { profile, loaded, saveProfile } = useProfile()
   // null enquanto confere no banco.
   const [hasPassword, setHasPassword] = useState<boolean | null>(null)
+  const [aiAccess, setAiAccess] = useState<AiAccess | null>(null)
+
+  useEffect(() => {
+    let active = true
+    fetchAiAccess().then((a) => active && setAiAccess(a))
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -57,6 +69,14 @@ export function AccountPage() {
           {providerLabel(session?.user.app_metadata.providers, hasPassword === true)}
         </p>
       </section>
+
+      {aiAccess?.vip && (
+        <section className="info-card form-card">
+          <h2>Inteligência artificial</h2>
+          <p className="muted">Sua conta é VIP: você pode usar a IA para ler o PDF do plano.</p>
+          <AiQuotaBar access={aiAccess} />
+        </section>
+      )}
 
       {/* Monta só depois que o perfil chega, para o formulário começar com os dados salvos. */}
       {loaded && <ProfileForm initial={profile} onSave={saveProfile} />}

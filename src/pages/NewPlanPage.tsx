@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { AiQuotaBar } from '../components/AiQuota'
 import { PlanEditor } from '../components/PlanEditor'
 import {
+  AI_READ_ESTIMATE_USD,
   MAX_PDF_MB,
   acceptAiTerms,
   deleteExtraction,
   extractPlanFromPdf,
   fetchAiAccess,
   fetchLatestExtraction,
-  formatUsd,
+  quotaPercent,
 } from '../lib/ai'
 import type { AiAccess, SavedExtraction } from '../lib/ai'
 import { extractPdfLines } from '../lib/pdfText'
@@ -30,8 +32,6 @@ type Step =
 // guardado no servidor por até este tempo (a leitura costuma levar 30-90 s).
 const RECOVER_TIMEOUT_MS = 150_000
 const RECOVER_INTERVAL_MS = 5_000
-// Estimativa mostrada no botão; o custo real aparece depois da leitura.
-const AI_COST_HINT = 'cerca de US$ 0,06'
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const timeLabel = (d: Date) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -88,6 +88,8 @@ export function NewPlanPage() {
 
   const aiRemaining = access ? access.monthLimitUsd - access.monthSpentUsd : 0
   const aiAvailable = !!access?.vip && aiRemaining > 0
+  // Estimativa no botão; o uso real aparece depois da leitura.
+  const aiHint = access ? `usa cerca de ${quotaPercent(AI_READ_ESTIMATE_USD, access.monthLimitUsd)}% da sua cota` : ''
 
   function toReview(plan: ExtractedPlan, opts: { costUsd: number | null; extractionId: string | null; file: File | null; by: 'device' | 'ai' }) {
     setStep({ kind: 'review', draft: draftFromExtracted(plan), ...opts })
@@ -207,7 +209,9 @@ export function NewPlanPage() {
         <h1 className="page-title">Revise o plano</h1>
         <p className="muted page-lead">
           {lead}
-          {step.costUsd !== null && ` Custo desta leitura: ${formatUsd(step.costUsd)}.`}
+          {step.costUsd !== null &&
+            access &&
+            ` Esta leitura usou ${quotaPercent(step.costUsd, access.monthLimitUsd)}% da sua cota de IA do mês.`}
         </p>
         {step.by === 'device' && reviewFile && aiAvailable && (
           <button
@@ -219,7 +223,7 @@ export function NewPlanPage() {
               else setStep({ kind: 'offer-ai', file: reviewFile, local: null, reason: 'Você pediu a leitura com IA.' })
             }}
           >
-            Não ficou bom? Ler com IA ({AI_COST_HINT})
+            Não ficou bom? Ler com IA ({aiHint})
           </button>
         )}
         {error && <p className="banner banner-error">{error}</p>}
@@ -282,11 +286,9 @@ export function NewPlanPage() {
           {access?.vip && aiRemaining > 0 && access.consented && (
             <>
               <button type="button" className="btn btn-primary" onClick={() => readWithAi(step.file)}>
-                Ler com IA ({AI_COST_HINT})
+                Ler com IA ({aiHint})
               </button>
-              <small className="muted">
-                Uso da IA neste mês: {formatUsd(access.monthSpentUsd)} de {formatUsd(access.monthLimitUsd)}.
-              </small>
+              <AiQuotaBar access={access} />
             </>
           )}
           {access?.vip && aiRemaining <= 0 && (
@@ -362,11 +364,7 @@ export function NewPlanPage() {
             <label htmlFor="pdf-input" className="btn btn-primary btn-file">
               Escolher PDF
             </label>
-            {access?.vip && (
-              <small className="muted">
-                Uso da IA neste mês: {formatUsd(access.monthSpentUsd)} de {formatUsd(access.monthLimitUsd)}.
-              </small>
-            )}
+            {access?.vip && <AiQuotaBar access={access} />}
           </section>
 
           <section className="info-card form-card">
