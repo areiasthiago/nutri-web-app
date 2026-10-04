@@ -167,7 +167,8 @@ Regras:
 - Refeições em ordem de horário. "time" no formato HH:MM (24h). Se a refeição não tiver horário no PDF, use um horário típico para ela e registre isso em "warnings".
 - Cada alimento é um item. "qty_text" é a quantidade como está escrita (ex.: "2 colheres de sopa (30 g)"). Preencha "qty_value" e "qty_unit" só quando houver número em g, mL ou unidades (ex.: 30 e "g"; 2 e "un"); medidas caseiras sem peso ficam só no texto, com qty_value e qty_unit null.
 - Substituições/opções/trocas de um alimento vão em "substitutions" desse item, uma por linha de texto (ex.: "Batata-doce cozida (100 g)"). Se o PDF oferecer opções para a refeição inteira (ex.: "Opção 1" e "Opção 2"), use a primeira como itens e descreva as demais em "warnings".
-- Metas diárias (kcal, proteína, carboidrato, gordura, água em mL) só se o PDF trouxer. Água em litros vira mL.
+- Valores de cada alimento: se o PDF trouxer kcal, proteína, carboidrato ou gordura por alimento (colunas ou ao lado do item), preencha em cada item. O que não houver fica null.
+- "targets" (kcal e macros do dia): se o PDF trouxer uma META diária explícita (ex.: "Meta", "VET", "Valor energético total prescrito", "Recomendação diária"), use a meta. Se trouxer só o TOTAL do dia (a soma das refeições do próprio plano, ex.: "Totais do dia"), use esse total e registre em "warnings": "O PDF traz o total das refeições do dia, não uma meta separada". Se trouxer os dois, use só a meta. Água em litros vira mL.
 - "hydration_slots": horários de água, se o PDF tiver um protocolo; senão, lista vazia.
 - "notes": orientações gerais do plano (ex.: "Pouco sal"), curtas, uma por item.
 - "status_note": null, a menos que o PDF traga um aviso sobre o próprio plano (ex.: "plano provisório").

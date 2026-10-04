@@ -326,6 +326,13 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
   const dayTotals = sumItems(plan.meals.flatMap((m) => m.meal_items))
   const consumed = consumedTotals(plan.meals, byMeal)
   const deviation = planDeviation(plan.meals, byMeal)
+  const targetTotals =
+    plan.target_kcal !== null
+      ? { kcal: plan.target_kcal, protein_g: plan.target_protein_g, carbs_g: plan.target_carbs_g, fat_g: plan.target_fat_g }
+      : null
+  // Meta igual ao total das refeições: o PDF só trazia o total do dia (não uma meta separada).
+  const targetIsTotal = targetTotals !== null && Math.round(targetTotals.kcal) === Math.round(dayTotals.kcal)
+  const dailyRef = targetTotals?.kcal ?? null
 
   function badgeFor(index: number): string | null {
     if (index !== highlighted) return null
@@ -405,8 +412,11 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
             <span className="muted">Comido hoje (refeições marcadas):</span>
             <br />
             <MacroLine totals={consumed} />
-            {plan.target_kcal !== null && (
-              <span className="muted"> · {Math.round((consumed.kcal / plan.target_kcal) * 100)}% da meta</span>
+            {dailyRef !== null && (
+              <span className="muted">
+                {' · '}
+                {Math.round((consumed.kcal / dailyRef) * 100)}% {targetIsTotal ? 'do total do plano' : 'da meta'}
+              </span>
             )}
           </p>
         )}
@@ -435,29 +445,33 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
             )}
           </p>
         )}
-        <p>
-          <span className="muted">Soma das refeições:</span>
-          <br />
-          <MacroLine totals={dayTotals} />
-        </p>
-        {plan.target_kcal !== null && (
+        {targetIsTotal ? (
+          // A "meta" é o próprio total das refeições (planos que só trazem o total do dia): uma linha só.
           <p>
-            <span className="muted">Meta do plano:</span>
+            <span className="muted">Total do plano por dia:</span>
             <br />
-            <MacroLine
-              totals={{
-                kcal: plan.target_kcal,
-                protein_g: plan.target_protein_g,
-                carbs_g: plan.target_carbs_g,
-                fat_g: plan.target_fat_g,
-              }}
-            />
+            <MacroLine totals={targetTotals!} />
           </p>
+        ) : (
+          <>
+            <p>
+              <span className="muted">Total das refeições do plano:</span>
+              <br />
+              <MacroLine totals={dayTotals} />
+            </p>
+            {targetTotals && (
+              <p>
+                <span className="muted">Meta diária:</span>
+                <br />
+                <MacroLine totals={targetTotals} />
+              </p>
+            )}
+          </>
         )}
         {dayTotals.protein_g === null && (
           <p className="muted">
-            O plano não traz proteína, carboidrato e gordura de cada alimento; por isso a soma e a diferença comparam
-            só as calorias.
+            O plano não traz proteína, carboidrato e gordura de cada alimento, então o comido e a diferença comparam só
+            as calorias.
           </p>
         )}
         <p className="muted">Valores aproximados. {plan.name}.</p>
