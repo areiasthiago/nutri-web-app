@@ -342,8 +342,6 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
 
   return (
     <>
-      {plan.status_note && <p className="banner banner-attention">{plan.status_note}</p>}
-
       <div className="day-progress">
         <div className="quota-head">
           <span>Refeições de hoje</span>
