@@ -112,7 +112,7 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
      `ai-extract-plan`, com teto mensal por usuário e registro de custo);
   3. sempre dá para montar à mão. Tudo cai na mesma tela de revisão antes de salvar.
 - Marcar refeição como feita com um toque na tela Hoje (e desmarcar), indicando a troca usada
-  em cada alimento; contador "X de N feitas"; o destaque pula as refeições já feitas. O dia
+  em cada alimento; contador "X de N registradas"; o destaque pula as refeições já registradas. O dia
   é o do fuso do usuário (testes em `src/lib/plan.test.ts`).
 - "Comi outra coisa" em cada refeição: escolhe da lista pessoal "Já comi antes" (sem IA),
   estima calorias e macros com IA (VIP) ou digita à mão; o que é novo entra na lista. O
@@ -127,8 +127,8 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
   novo. Cada salvamento cria uma versão nova (a anterior fica guardada) e as refeições já
   marcadas hoje passam para a versão nova.
 - Barra de navegação embaixo: Refeições, Água e Resumo (rolam a tela Hoje) e Estatísticas.
-- Estatísticas (barra de baixo ou menu ☰): dia, semana e mês, com refeições feitas, água contra
-  a meta e calorias comidas contra o total do plano, em gráficos por dia; sequência de dias
+- Estatísticas (barra de baixo ou menu ☰): dia, semana e mês, com refeições registradas, água contra
+  a meta e calorias registradas contra o total do plano, em gráficos por dia; sequência de dias
   completos e selo de parabéns para compartilhar (só a conquista, nada do plano). Regras
   testadas em `src/lib/stats.test.ts`.
 - Selo "beta v1.0.N" no cabeçalho: N é o número do deploy, para conferir a versão em produção.

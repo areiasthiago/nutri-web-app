@@ -244,7 +244,7 @@ export function OffPlanSheet({
               )
             })}
             <button type="button" className="btn btn-primary" disabled={busy} onClick={confirmSwaps}>
-              {busyText ?? (doneOnPlan ? 'Salvar trocas' : 'Salvar trocas e marcar como feita')}
+              {busyText ?? (doneOnPlan ? 'Salvar trocas' : 'Salvar trocas e registrar')}
             </button>
             <div className="divider">ou</div>
           </section>

@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { MealLog } from './mealLogs'
 import { leftThePlan, mealActualTotals } from './mealLogs'
 import type { Meal, Plan } from './plan'
-import { sumItems } from './plan'
+import { ZERO_TOTALS, addTotals, itemTotals, sumItems } from './plan'
 import { supabase } from './supabaseClient'
 
 // Só usado nas telas logadas, quando supabaseConfigError já é null.
@@ -58,6 +58,10 @@ export type DayStat = {
   kcal: number
   /** Total do plano por dia (meta, ou soma das refeições se não houver meta). */
   kcalPlan: number | null
+  /** Macros registradas no dia; null = desconhecida (algum alimento sem esse macro). */
+  macros: Macros
+  /** Meta de macros do plano por dia; null = o plano não informa. */
+  macroTargets: Macros
   snacks: number
   /** Teve algum registro (refeição ou água) — dia sem nada não conta como dia ruim do futuro. */
   hasData: boolean
@@ -66,17 +70,19 @@ export type DayStat = {
 /** Registro de refeição com a refeição (e os alimentos) a que se refere. */
 export type LoggedMeal = MealLog & { meal: Meal & { plan_id: string } }
 
+export type Macros = { protein_g: number | null; carbs_g: number | null; fat_g: number | null }
+
 export type StatsInput = {
   dates: string[]
   /** Primeiro dia com algum registro (de todos os tempos), ou null se nunca registrou nada. */
   firstDate: string | null
   mealLogs: LoggedMeal[]
   waterLogs: { log_date: string; ml: number }[]
-  snackLogs: { log_date: string; kcal: number | null }[]
+  snackLogs: ({ log_date: string; kcal: number | null } & Partial<Macros>)[]
   /** Refeições por plano (para saber quantas o plano previa no dia). */
   mealsPerPlan: Map<string, number>
   /** Plano ativo: referência para metas e para dias sem registro. */
-  plan: Pick<Plan, 'target_kcal' | 'target_water_ml'> & { mealCount: number; mealsKcal: number }
+  plan: Pick<Plan, 'target_kcal' | 'target_water_ml'> & { mealCount: number; mealsKcal: number; macroTargets: Macros }
 }
 
 export function aggregateDays(input: StatsInput): DayStat[] {
@@ -89,6 +95,10 @@ export function aggregateDays(input: StatsInput): DayStat[] {
     const snacks = input.snackLogs.filter((s) => s.log_date === date)
     const kcal =
       logs.reduce((s, l) => s + mealActualTotals(l.meal, l).kcal, 0) + snacks.reduce((s, x) => s + (x.kcal ?? 0), 0)
+    const total = [
+      ...logs.map((l) => mealActualTotals(l.meal, l)),
+      ...snacks.map((x) => itemTotals({ kcal: x.kcal, protein_g: x.protein_g ?? null, carbs_g: x.carbs_g ?? null, fat_g: x.fat_g ?? null })),
+    ].reduce(addTotals, ZERO_TOTALS)
     return {
       date,
       mealsDone: logs.length,
@@ -98,6 +108,8 @@ export function aggregateDays(input: StatsInput): DayStat[] {
       waterTarget: input.plan.target_water_ml,
       kcal,
       kcalPlan: input.plan.target_kcal ?? (input.plan.mealsKcal || null),
+      macros: { protein_g: total.protein_g, carbs_g: total.carbs_g, fat_g: total.fat_g },
+      macroTargets: input.plan.macroTargets,
       snacks: snacks.length,
       hasData: logs.length > 0 || water > 0 || snacks.length > 0,
     }
@@ -125,12 +137,29 @@ export type PeriodSummary = {
   waterPct: number
   /** Dias em que a meta de água foi batida. */
   waterGoalDays: number
+  /** Média do registrado em relação ao total do plano (% nos dias com registro); null sem total no plano. */
+  kcalPct: number | null
+  /** Média de cada macro registrada em relação à meta do plano (%); null se o plano ou algum registro não informa. */
+  macroPct: Macros
   /** Dias com as calorias no alvo (ver kcalOnTarget). */
   kcalOkDays: number
   /** Média de kcal comidas nos dias com registro. */
   kcalAvg: number
   offPlanMeals: number
   snacks: number
+}
+
+/** Média do % de uma macro sobre a meta, ou null se alguma coisa não for conhecida. */
+function macroAvg(days: DayStat[], key: keyof Macros, avg: (xs: number[]) => number): number | null {
+  if (!days.length) return null
+  const xs: number[] = []
+  for (const d of days) {
+    const got = d.macros[key]
+    const target = d.macroTargets[key]
+    if (got === null || !target) return null
+    xs.push(pct(got, target))
+  }
+  return avg(xs)
 }
 
 /**
@@ -149,6 +178,12 @@ export function summarize(days: DayStat[], today: string, since: string | null =
     waterPct: avg(past.map((d) => Math.min(100, pct(d.waterMl, d.waterTarget)))),
     waterGoalDays: past.filter((d) => d.waterTarget && d.waterMl >= d.waterTarget).length,
     kcalOkDays: past.filter(kcalOnTarget).length,
+    kcalPct: tracked.length && tracked[0].kcalPlan ? avg(tracked.map((d) => pct(d.kcal, d.kcalPlan))) : null,
+    macroPct: {
+      protein_g: macroAvg(tracked, 'protein_g', avg),
+      carbs_g: macroAvg(tracked, 'carbs_g', avg),
+      fat_g: macroAvg(tracked, 'fat_g', avg),
+    },
     kcalAvg: avg(tracked.map((d) => d.kcal)),
     offPlanMeals: past.reduce((s, d) => s + d.mealsOffPlan, 0),
     snacks: past.reduce((s, d) => s + d.snacks, 0),
@@ -224,6 +259,16 @@ export function monthAchievement(s: PeriodSummary, when: string): Achievement | 
 // Banco
 // ---------------------------------------------------------------------------
 
+/** Meta de macros do plano: a informada, ou a soma dos alimentos (quando todos informam). */
+export function macroTargetsOf(plan: Plan): Macros {
+  const items = sumItems(plan.meals.flatMap((m) => m.meal_items))
+  return {
+    protein_g: plan.target_protein_g ?? items.protein_g,
+    carbs_g: plan.target_carbs_g ?? items.carbs_g,
+    fat_g: plan.target_fat_g ?? items.fat_g,
+  }
+}
+
 export async function fetchStatsInput(plan: Plan, from: string, to: string): Promise<StatsInput> {
   const first = (table: string) =>
     client.from(table).select('log_date').order('log_date', { ascending: true }).limit(1)
@@ -240,7 +285,7 @@ export async function fetchStatsInput(plan: Plan, from: string, to: string): Pro
       .gte('log_date', from)
       .lte('log_date', to),
     client.from('water_logs').select('log_date, ml').gte('log_date', from).lte('log_date', to),
-    client.from('snack_logs').select('log_date, kcal').gte('log_date', from).lte('log_date', to),
+    client.from('snack_logs').select('log_date, kcal, protein_g, carbs_g, fat_g').gte('log_date', from).lte('log_date', to),
     client.from('meals').select('plan_id'),
     first('meal_logs'),
     first('water_logs'),
@@ -258,13 +303,14 @@ export async function fetchStatsInput(plan: Plan, from: string, to: string): Pro
     firstDate: firstDates[0] ?? null,
     mealLogs: (mealLogs.data ?? []) as unknown as LoggedMeal[],
     waterLogs: (waterLogs.data ?? []) as { log_date: string; ml: number }[],
-    snackLogs: (snackLogs.data ?? []) as { log_date: string; kcal: number | null }[],
+    snackLogs: (snackLogs.data ?? []) as StatsInput['snackLogs'],
     mealsPerPlan,
     plan: {
       target_kcal: plan.target_kcal,
       target_water_ml: plan.target_water_ml,
       mealCount: plan.meals.length,
       mealsKcal: sumItems(plan.meals.flatMap((m) => m.meal_items)).kcal,
+      macroTargets: macroTargetsOf(plan),
     },
   }
 }

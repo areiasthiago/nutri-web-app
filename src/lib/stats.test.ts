@@ -40,6 +40,7 @@ const log = (m: LoggedMeal['meal'], date: string, actual?: number): LoggedMeal =
   actual_carbs_g: null, actual_fat_g: null, meal: m,
 })
 const [cafe, almoco] = [meal('cafe'), meal('almoco')]
+const NO_MACROS = { protein_g: null, carbs_g: null, fat_g: null }
 const input = (over: Partial<StatsInput>): StatsInput => ({
   dates: ['2026-10-01', '2026-10-02', '2026-10-03'],
   firstDate: '2026-10-01',
@@ -47,7 +48,7 @@ const input = (over: Partial<StatsInput>): StatsInput => ({
   waterLogs: [],
   snackLogs: [],
   mealsPerPlan: new Map([['p1', 3]]),
-  plan: { target_kcal: null, target_water_ml: 2000, mealCount: 3, mealsKcal: 1500 },
+  plan: { target_kcal: null, target_water_ml: 2000, mealCount: 3, mealsKcal: 1500, macroTargets: NO_MACROS },
   ...over,
 })
 
@@ -71,6 +72,7 @@ describe('resumo do período, sequência e selo', () => {
   const day = (date: string, mealsDone: number, waterMl: number): DayStat => ({
     date, mealsDone, mealsPlanned: 3, mealsOffPlan: 0, waterMl, waterTarget: 2000,
     kcal: mealsDone * 500, kcalPlan: 1500, snacks: 0, hasData: mealsDone > 0 || waterMl > 0,
+    macros: NO_MACROS, macroTargets: NO_MACROS,
   })
 
   it('médias só com os dias até hoje (o futuro não derruba a média)', () => {
@@ -86,6 +88,20 @@ describe('resumo do período, sequência e selo', () => {
     expect(summarize([k('2026-10-01', 1350), k('2026-10-02', 1651), k('2026-10-03', 1600)], '2026-10-03').kcalOkDays).toBe(2)
     // Dias antes do primeiro registro também não entram.
     expect(summarize([day('2026-10-01', 0, 0), day('2026-10-02', 3, 2000)], '2026-10-02', '2026-10-02').mealsPct).toBe(100)
+  })
+
+  it('meta calórica e macros em relação ao plano (só com o que é conhecido)', () => {
+    const withMacros = (date: string, kcal: number, protein: number): DayStat => ({
+      ...day(date, 3, 0), kcal,
+      macros: { protein_g: protein, carbs_g: 150, fat_g: 50 },
+      macroTargets: { protein_g: 100, carbs_g: 150, fat_g: 50 },
+    })
+    const s = summarize([withMacros('2026-10-01', 1500, 90), withMacros('2026-10-02', 1200, 110)], '2026-10-02')
+    expect(s.kcalPct).toBe(90)
+    expect(s.macroPct).toEqual({ protein_g: 100, carbs_g: 100, fat_g: 100 })
+    // Um dia com macro desconhecida (ou plano sem meta) deixa a média desconhecida.
+    const unknown = summarize([withMacros('2026-10-01', 1500, 90), day('2026-10-02', 3, 0)], '2026-10-02')
+    expect(unknown.macroPct.protein_g).toBeNull()
   })
 
   it('sequência de dias completos; hoje em andamento não quebra', () => {

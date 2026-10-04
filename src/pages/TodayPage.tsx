@@ -126,14 +126,14 @@ function MealCard({ meal, badge, late, log, busy, onToggle, onChange }: MealCard
           onClick={handleCheck}
           disabled={busy}
           aria-pressed={done}
-          aria-label={done ? `Desmarcar ${meal.name}` : `Marcar ${meal.name} como feita`}
+          aria-label={done ? `Desmarcar ${meal.name}` : `Registrar ${meal.name}`}
         >
           {done && <CheckIcon />}
         </button>
         <span className="meal-time">{formatTime(meal.time)}</span>
         <span className="meal-name">
           {meal.name}
-          {done && !outsidePlan && <span className="meal-badge meal-badge-done">Feita às {doneTime(log.done_at)}</span>}
+          {done && !outsidePlan && <span className="meal-badge meal-badge-done">Registrada às {doneTime(log.done_at)}</span>}
           {outsidePlan && <span className="meal-badge meal-badge-offplan">Fora do plano · {doneTime(log!.done_at)}</span>}
           {!done && badge && <span className="meal-badge">{badge}</span>}
           {!done && !badge && late && <span className="meal-badge meal-badge-late">Não marcada</span>}
@@ -148,7 +148,7 @@ function MealCard({ meal, badge, late, log, busy, onToggle, onChange }: MealCard
       {offPlan && (
         <div className="meal-offplan">
           <p>
-            Você comeu: <strong>{log!.actual_name}</strong>
+            Registrado: <strong>{log!.actual_name}</strong>
             {log!.actual_kcal !== null && ` · ${formatNumber(log!.actual_kcal)} kcal`}
           </p>
           <p className="muted">No lugar do que o plano previa:</p>
@@ -398,7 +398,7 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
           <div className="quota-head">
             <span>Refeições de hoje</span>
             <strong>
-              {doneCount} de {plan.meals.length} feitas
+              {doneCount} de {plan.meals.length} registradas
             </strong>
           </div>
           <div
@@ -407,7 +407,7 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
             aria-valuemin={0}
             aria-valuemax={plan.meals.length}
             aria-valuenow={doneCount}
-            aria-label="Refeições feitas hoje"
+            aria-label="Refeições registradas hoje"
           >
             <span style={{ width: `${plan.meals.length ? (doneCount / plan.meals.length) * 100 : 0}%` }} />
           </div>
@@ -416,7 +416,7 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
         {logError && <p className="banner banner-error">{logError}</p>}
 
         {logs && doneCount === plan.meals.length && plan.meals.length > 0 && (
-          <p className="banner banner-info">Todas as refeições de hoje feitas. Muito bem!</p>
+          <p className="banner banner-info">Todas as refeições de hoje registradas. Muito bem!</p>
         )}
         {logs && highlighted === -1 && doneCount < plan.meals.length && (
           <p className="banner banner-info">Ficou refeição sem marcar hoje. Se você comeu, toque no círculo dela.</p>
@@ -470,7 +470,7 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
         <h2>Resumo do plano</h2>
         {hasEaten && (
           <p>
-            <span className="muted">Comido hoje (refeições marcadas e fora de hora):</span>
+            <span className="muted">Registrado hoje (refeições marcadas e fora de hora):</span>
             <br />
             <MacroLine totals={consumed} />
             {dailyRef !== null && (
@@ -531,7 +531,7 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
         )}
         {dayTotals.protein_g === null && (
           <p className="muted">
-            O plano não traz proteína, carboidrato e gordura de cada alimento, então o comido e a diferença comparam só
+            O plano não traz proteína, carboidrato e gordura de cada alimento, então o registrado e a diferença comparam só
             as calorias.
           </p>
         )}
