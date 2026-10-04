@@ -373,7 +373,7 @@ export function OffPlanSheet({
               maxLength={300}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Descreva sua refeição, quantidades, peso, etc."
+              placeholder="Busque uma refeição que você já registrou ou descreva uma nova (alimentos, quantidades, peso)"
               autoFocus={swapItems.length === 0}
             />
 
