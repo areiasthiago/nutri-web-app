@@ -139,7 +139,7 @@ export type PeriodSummary = {
   waterGoalDays: number
   /** Média do registrado em relação ao total do plano (% nos dias com registro); null sem total no plano. */
   kcalPct: number | null
-  /** Média de cada macro registrada em relação à meta do plano (%); null se o plano ou algum registro não informa. */
+  /** Média de cada macro registrada em relação à meta do plano (%), nos dias em que é conhecida; null se nenhum. */
   macroPct: Macros
   /** Dias com as calorias no alvo (ver kcalOnTarget). */
   kcalOkDays: number
@@ -149,17 +149,18 @@ export type PeriodSummary = {
   snacks: number
 }
 
-/** Média do % de uma macro sobre a meta, ou null se alguma coisa não for conhecida. */
+/**
+ * Média do % de uma macro sobre a meta, só nos dias em que ela é conhecida (um
+ * registro sem essa macro tira o dia da conta); null se nenhum dia tiver.
+ */
 function macroAvg(days: DayStat[], key: keyof Macros, avg: (xs: number[]) => number): number | null {
-  if (!days.length) return null
   const xs: number[] = []
   for (const d of days) {
     const got = d.macros[key]
     const target = d.macroTargets[key]
-    if (got === null || !target) return null
-    xs.push(pct(got, target))
+    if (got !== null && target) xs.push(pct(got, target))
   }
-  return avg(xs)
+  return xs.length ? avg(xs) : null
 }
 
 /**

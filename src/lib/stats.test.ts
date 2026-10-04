@@ -99,9 +99,11 @@ describe('resumo do período, sequência e selo', () => {
     const s = summarize([withMacros('2026-10-01', 1500, 90), withMacros('2026-10-02', 1200, 110)], '2026-10-02')
     expect(s.kcalPct).toBe(90)
     expect(s.macroPct).toEqual({ protein_g: 100, carbs_g: 100, fat_g: 100 })
-    // Um dia com macro desconhecida (ou plano sem meta) deixa a média desconhecida.
-    const unknown = summarize([withMacros('2026-10-01', 1500, 90), day('2026-10-02', 3, 0)], '2026-10-02')
-    expect(unknown.macroPct.protein_g).toBeNull()
+    // Dia com macro desconhecida (ex.: algo registrado sem proteína) sai da média.
+    const partial = summarize([withMacros('2026-10-01', 1500, 90), day('2026-10-02', 3, 0)], '2026-10-02')
+    expect(partial.macroPct.protein_g).toBe(90)
+    // Nenhum dia conhecido: desconhecida.
+    expect(summarize([day('2026-10-02', 3, 0)], '2026-10-02').macroPct.protein_g).toBeNull()
   })
 
   it('sequência de dias completos; hoje em andamento não quebra', () => {
