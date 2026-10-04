@@ -1489,8 +1489,9 @@ input {
 
 /* Selo de versão no cabeçalho (confere se o celular está na versão publicada). */
 .version-badge {
-  align-self: flex-start;
-  margin-top: 2px;
+  /* Centrado na altura das letras do nome (o circunflexo fica acima delas). */
+  align-self: center;
+  margin-top: 4px;
   padding: 1px 6px;
   border-radius: 999px;
   background: var(--surface);
