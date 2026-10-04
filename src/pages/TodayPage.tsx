@@ -43,7 +43,7 @@ function MacroLine({ totals }: { totals: { [K in keyof Totals]: number | null } 
 
 function CheckIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M5 12.5l4.5 4.5L19 7.5" />
     </svg>
   )
