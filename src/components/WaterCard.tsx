@@ -48,7 +48,8 @@ export function WaterCard({ targetMl, slots, date, nowMinutes }: Props) {
   const percent = Math.min(100, Math.round((intake / targetMl) * 100))
   const statuses = slotStatuses(slots, intake, nowMinutes)
   const expected = expectedByNow(slots, nowMinutes)
-  const nextSlot = statuses.find((s) => !s.reached)
+  // Próximo horário pelo relógio (os que já passaram aparecem na lista, em laranja).
+  const nextSlot = statuses.find((s) => !s.due)
 
   async function add(ml: number) {
     setError(null)
