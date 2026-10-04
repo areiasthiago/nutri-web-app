@@ -1847,3 +1847,45 @@ body.with-bottom-nav .editor-actions {
   margin: 10px 0 0;
   font-weight: 600;
 }
+
+/* Aviso para ativar notificações (tela Hoje) */
+
+.notif-prompt {
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--info-bg);
+  color: var(--info-text);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.notif-prompt p {
+  margin: 0 0 8px;
+}
+
+.notif-prompt .notif-prompt-title {
+  margin-bottom: 2px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.notif-prompt a {
+  color: inherit;
+  font-weight: 600;
+}
+
+.notif-prompt-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.notif-prompt .btn-link {
+  color: inherit;
+}
+
+.notif-prompt .notif-prompt-error {
+  margin: 8px 0 0;
+  color: var(--error-text);
+}

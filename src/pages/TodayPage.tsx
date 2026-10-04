@@ -3,6 +3,7 @@ import type { MouseEvent } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { scrollToSection } from '../components/BottomNav'
 import type { TodaySection } from '../components/BottomNav'
+import { NotificationPrompt } from '../components/NotificationPrompt'
 import { OffPlanSheet } from '../components/OffPlanSheet'
 import { SnackCard } from '../components/SnackCard'
 import { WaterCard } from '../components/WaterCard'
@@ -214,6 +215,8 @@ export function TodayPage() {
         </h1>
         <p className="page-date">{dateLabel}</p>
       </div>
+
+      {state.status === 'ready' && state.plan && <NotificationPrompt />}
 
       {state.status === 'loading' && <p className="centered-message muted">Carregando seu plano…</p>}
 
