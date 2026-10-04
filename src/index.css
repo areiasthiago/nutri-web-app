@@ -1460,3 +1460,16 @@ input {
   opacity: 0;
   pointer-events: none;
 }
+
+/* "Não comi" */
+.swap-chip-skip.is-selected {
+  border-color: var(--text-muted);
+  background: var(--text-muted);
+}
+
+.meal-item-skipped {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: var(--text-muted);
+  font-weight: 600;
+}

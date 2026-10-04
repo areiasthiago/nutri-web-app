@@ -19,6 +19,8 @@ export type Swap = {
   protein_g?: number | null
   carbs_g?: number | null
   fat_g?: number | null
+  /** "Não comi": o alimento conta zero. */
+  skipped?: boolean
 }
 
 export type MealLog = {
@@ -50,6 +52,21 @@ const COLUMNS =
   'id, meal_id, log_date, done_at, swaps, custom_meal_id, actual_name, actual_kcal, actual_protein_g, actual_carbs_g, actual_fat_g'
 
 export const isOffPlan = (log: MealLog | undefined) => !!log?.actual_name
+
+/**
+ * A refeição saiu do plano: comeu outra coisa no lugar, ou trocou algum
+ * alimento por algo fora das trocas previstas ("Outro…"). Trocas previstas e
+ * "Não comi" não contam como fora do plano.
+ */
+export function leftThePlan(meal: Meal, log: MealLog | undefined): boolean {
+  if (!log) return false
+  if (isOffPlan(log)) return true
+  return log.swaps.some((s) => {
+    if (s.skipped) return false
+    const item = meal.meal_items.find((i) => i.id === s.item_id)
+    return !item?.substitutions.some((sub) => sub.text === s.substitution)
+  })
+}
 
 const ZERO: Totals = { kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
 

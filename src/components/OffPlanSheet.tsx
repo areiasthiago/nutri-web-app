@@ -83,6 +83,22 @@ export function OffPlanSheet({
 
   const swapFor = (itemId: string) => swaps.find((s) => s.item_id === itemId)?.substitution ?? ''
 
+  const skippedFor = (itemId: string) => swaps.some((s) => s.item_id === itemId && s.skipped)
+
+  /** "Não comi": o alimento fica de fora e conta zero. */
+  function skipItem(item: MealItem) {
+    const others = swaps.filter((s) => s.item_id !== item.id)
+    setSwaps([
+      ...others,
+      { item_id: item.id, food: item.food, substitution: 'Não comi', skipped: true, kcal: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+    ])
+    setCustomOpen((open) => {
+      const next = new Set(open)
+      next.delete(item.id)
+      return next
+    })
+  }
+
   function chooseSwap(item: MealItem, substitution: string, custom = false) {
     const others = swaps.filter((s) => s.item_id !== item.id)
     setSwaps(substitution ? [...others, { item_id: item.id, food: item.food, substitution }] : others)
@@ -244,16 +260,17 @@ export function OffPlanSheet({
           <section className="swap-section" aria-label="Trocas do plano">
             {/* Um grupo por alimento: o do plano (já selecionado), as trocas previstas e "Outro…". */}
             {swapItems.map((item) => {
-              const chosen = swapFor(item.id)
-              const isCustom = customOpen.has(item.id)
+              const skipped = skippedFor(item.id)
+              const chosen = skipped ? '' : swapFor(item.id)
+              const isCustom = !skipped && customOpen.has(item.id)
               return (
                 <div key={item.id} className="swap-group">
                   <div className="swap-chips" role="radiogroup" aria-label={`Opções para ${item.food}`}>
                     <button
                       type="button"
                       role="radio"
-                      aria-checked={!chosen && !isCustom}
-                      className={`swap-chip${!chosen && !isCustom ? ' is-selected' : ''}`}
+                      aria-checked={!chosen && !isCustom && !skipped}
+                      className={`swap-chip${!chosen && !isCustom && !skipped ? ' is-selected' : ''}`}
                       onClick={() => chooseSwap(item, '')}
                     >
                       {item.food}
@@ -279,6 +296,15 @@ export function OffPlanSheet({
                       onClick={() => chooseSwap(item, '', true)}
                     >
                       Outro…
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={skipped}
+                      className={`swap-chip swap-chip-skip${skipped ? ' is-selected' : ''}`}
+                      onClick={() => skipItem(item)}
+                    >
+                      Não comi
                     </button>
                   </div>
                   {isCustom && (

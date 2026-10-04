@@ -9,6 +9,7 @@ import {
   consumedTotals,
   fetchMealLogs,
   isOffPlan,
+  leftThePlan,
   markMealDone,
   markMealOffPlan,
   mealActualTotals,
@@ -94,11 +95,13 @@ function MealCard({ meal, badge, late, log, busy, onToggle, onChange }: MealCard
   const totals = sumItems(meal.meal_items)
   const done = !!log
   const offPlan = isOffPlan(log)
+  const outsidePlan = leftThePlan(meal, log)
   // O que foi comido (com trocas e "fora do plano"); sem marcação, o do plano.
   const actual = log ? mealActualTotals(meal, log) : totals
   const swaps = offPlan ? [] : (log?.swaps ?? [])
   const swapFor = (itemId: string) => swaps.find((sw) => sw.item_id === itemId)?.substitution ?? ''
   const swapKcal = (itemId: string) => swaps.find((sw) => sw.item_id === itemId)?.kcal ?? null
+  const skipped = (itemId: string) => swaps.some((sw) => sw.item_id === itemId && sw.skipped)
 
   function handleCheck(e: MouseEvent) {
     // O botão fica dentro do <summary>: sem isto, o toque também abriria/fecharia o cartão.
@@ -125,8 +128,8 @@ function MealCard({ meal, badge, late, log, busy, onToggle, onChange }: MealCard
         <span className="meal-time">{formatTime(meal.time)}</span>
         <span className="meal-name">
           {meal.name}
-          {done && !offPlan && <span className="meal-badge meal-badge-done">Feita às {doneTime(log.done_at)}</span>}
-          {offPlan && <span className="meal-badge meal-badge-offplan">Fora do plano · {doneTime(log!.done_at)}</span>}
+          {done && !outsidePlan && <span className="meal-badge meal-badge-done">Feita às {doneTime(log.done_at)}</span>}
+          {outsidePlan && <span className="meal-badge meal-badge-offplan">Fora do plano · {doneTime(log!.done_at)}</span>}
           {!done && badge && <span className="meal-badge">{badge}</span>}
           {!done && !badge && late && <span className="meal-badge meal-badge-late">Não marcada</span>}
         </span>
@@ -155,7 +158,8 @@ function MealCard({ meal, badge, late, log, busy, onToggle, onChange }: MealCard
                 <span className={chosen ? 'meal-item-swapped' : undefined}>{item.food}</span>
                 <span className="meal-item-qty">{item.qty_text}</span>
               </div>
-              {chosen && (
+              {chosen && skipped(item.id) && <p className="meal-item-skipped">Não comeu</p>}
+              {chosen && !skipped(item.id) && (
                 <p className="meal-item-swapto">
                   Troca: {chosen}
                   {swapKcal(item.id) !== null && <span className="muted"> · {formatNumber(swapKcal(item.id)!)} kcal</span>}
