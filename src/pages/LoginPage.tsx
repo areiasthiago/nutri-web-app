@@ -4,6 +4,7 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import logoMark from '../assets/logo-mark.svg'
 import { Wordmark } from '../components/Wordmark'
+import { ACCOUNT_DELETED_FLAG } from '../components/DeleteAccountCard'
 
 // "G" oficial do Google, nas cores da marca (permitido pelas diretrizes de
 // botão "Sign in with Google"; não recolorir).
@@ -41,7 +42,18 @@ export function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(() => readOAuthError())
-  const [info, setInfo] = useState<string | null>(null)
+  // Logo depois de apagar a conta pelo app, um aviso de confirmação (uma vez).
+  const [info, setInfo] = useState<string | null>(() => {
+    try {
+      if (localStorage.getItem(ACCOUNT_DELETED_FLAG)) {
+        localStorage.removeItem(ACCOUNT_DELETED_FLAG)
+        return 'Sua conta e todos os seus dados foram apagados.'
+      }
+    } catch {
+      // sem armazenamento: sem aviso
+    }
+    return null
+  })
   const [submitting, setSubmitting] = useState(false)
 
   async function handleGoogle() {

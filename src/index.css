@@ -2523,3 +2523,33 @@ body.with-bottom-nav .editor-actions {
   font: inherit;
   font-size: 14px;
 }
+
+/* Apagar conta */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.btn.danger-outline {
+  border-color: var(--error-text);
+  color: var(--error-text);
+}
+
+.btn-danger {
+  border: 0;
+  background: var(--error-text);
+  color: #fff;
+}
+
+.btn-danger:disabled {
+  opacity: 0.45;
+}
+
+.delete-card {
+  margin-top: 8px;
+}

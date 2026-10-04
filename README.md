@@ -178,9 +178,12 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
   (`src/lib/marketSections.ts`, com testes); a pessoa pode mudar a seção de um item
   (`food_sections`).
 
+- Apagar a conta (Minha conta → Apagar conta, confirmando com "APAGAR"): a Edge Function
+  `delete-account` apaga o login, e em cascata todos os dados, e tira o e-mail da lista de convites.
+
 ## O que ainda não existe (próximas fatias)
 
-Apagar a conta pelo app — briefing, seção 10.
+A Fase 1 do briefing está completa. Fase 2: uso offline com sincronização quando a conexão voltar.
 
 ## IA (só VIP)
 

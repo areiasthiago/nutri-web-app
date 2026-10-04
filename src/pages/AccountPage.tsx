@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { AiQuotaBar } from '../components/AiQuota'
+import { DeleteAccountCard } from '../components/DeleteAccountCard'
 import { NotificationsCard } from '../components/NotificationsCard'
 import { ReminderPrefsForm } from '../components/ReminderPrefsForm'
 import { fetchAiAccess } from '../lib/ai'
@@ -84,10 +85,9 @@ export function AccountPage() {
       <button type="button" className="btn btn-outline" onClick={() => signOut()}>
         Sair da conta
       </button>
-      <p className="muted account-footnote">
-        Para trocar o e-mail ou apagar a conta, fale com seu nutri por enquanto. Apagar a conta pelo
-        próprio app chega numa próxima atualização.
-      </p>
+      <DeleteAccountCard />
+
+      <p className="muted account-footnote">Para trocar o e-mail da conta, fale com quem te convidou.</p>
     </div>
   )
 }
