@@ -15,53 +15,55 @@ export type CustomMeal = {
   carbs_g: number | null
   fat_g: number | null
   source: 'ai' | 'manual'
+  /** 'meal': refeição inteira ("Comi outra coisa"); 'item': alimento trocado ("Outro…"). */
+  kind: 'meal' | 'item'
   use_count: number
   last_used_at: string
 }
 
 export type CustomMealInput = Omit<CustomMeal, 'id' | 'use_count' | 'last_used_at'>
 
-const COLUMNS = 'id, name, description, kcal, protein_g, carbs_g, fat_g, source, use_count, last_used_at'
-
-// ---------------------------------------------------------------------------
-// Busca (pura, testada em customMeals.test.ts)
-// ---------------------------------------------------------------------------
-
-/**
- * Itens da lista que combinam com o que a pessoa está digitando, ignorando
- * acento e maiúsculas. Todas as palavras digitadas precisam aparecer no nome
- * ou na descrição. Mais usados primeiro; nome começando igual vem antes.
- */
-export function searchCustomMeals(list: CustomMeal[], query: string, limit = 5): CustomMeal[] {
-  const words = fold(query).split(/[^a-z0-9]+/).filter((w) => w.length >= 2)
-  if (words.length === 0) return []
-  const start = fold(query).trim()
-  return list
-    .filter((m) => {
-      const hay = fold(`${m.name} ${m.description ?? ''}`)
-      return words.every((w) => hay.includes(w))
-    })
-    .sort((a, b) => {
-      const aStarts = fold(a.name).startsWith(start) ? 1 : 0
-      const bStarts = fold(b.name).startsWith(start) ? 1 : 0
-      return bStarts - aStarts || b.use_count - a.use_count
-    })
-    .slice(0, limit)
-}
+const COLUMNS = 'id, name, description, kcal, protein_g, carbs_g, fat_g, source, kind, use_count, last_used_at'
 
 // ---------------------------------------------------------------------------
 // Banco
 // ---------------------------------------------------------------------------
 
-/** A lista "Já comi antes", da mais recente para a mais antiga. */
-export async function fetchCustomMeals(): Promise<CustomMeal[]> {
-  const { data, error } = await client
-    .from('custom_meals')
-    .select(COLUMNS)
+/** Palavras da busca: minúsculas, sem acento, com 2+ letras. */
+export function searchWords(query: string): string[] {
+  return fold(query)
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length >= 2)
+}
+
+/**
+ * Busca no banco (a lista cresce com o tempo): todas as palavras digitadas
+ * precisam aparecer no nome ou na descrição (coluna search_text, sem acento).
+ * Mais usados primeiro.
+ */
+export async function searchCustomMealsInDb(
+  kind: CustomMeal['kind'] | null,
+  query: string,
+  limit = 5,
+): Promise<CustomMeal[]> {
+  const words = searchWords(query)
+  if (words.length === 0) return []
+  let request = client.from('custom_meals').select(COLUMNS)
+  if (kind) request = request.eq('kind', kind)
+  for (const w of words) request = request.ilike('search_text', `%${w}%`)
+  const { data, error } = await request
+    .order('use_count', { ascending: false })
     .order('last_used_at', { ascending: false })
-    .limit(200)
+    .limit(limit)
   if (error) throw error
   return (data ?? []) as CustomMeal[]
+}
+
+/** Item com exatamente este nome (ignorando acento e maiúsculas), de preferência do tipo pedido. */
+export async function findCustomMealByName(name: string, kind: CustomMeal['kind']): Promise<CustomMeal | null> {
+  const candidates = await searchCustomMealsInDb(null, name, 20)
+  const same = candidates.filter((m) => fold(m.name) === fold(name.trim()))
+  return same.find((m) => m.kind === kind) ?? same[0] ?? null
 }
 
 export async function createCustomMeal(input: CustomMealInput): Promise<CustomMeal> {

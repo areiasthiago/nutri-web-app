@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { AI_ESTIMATE_ESTIMATE_USD, acceptAiTerms, estimateMealWithAi, quotaPercent } from '../lib/ai'
 import type { AiAccess } from '../lib/ai'
-import { createCustomMeal, fetchCustomMeals, searchCustomMeals, touchCustomMeal } from '../lib/customMeals'
+import { createCustomMeal, findCustomMealByName, searchCustomMealsInDb, touchCustomMeal } from '../lib/customMeals'
 import type { CustomMeal } from '../lib/customMeals'
 import type { OffPlanFood, Swap } from '../lib/mealLogs'
 import { formatNumber } from '../lib/plan'
@@ -62,8 +62,10 @@ export function OffPlanSheet({
           .map((s) => s.item_id),
       ),
   )
-  const [library, setLibrary] = useState<CustomMeal[]>([])
   const [text, setText] = useState('')
+  // Resultados da busca no banco: refeições (campo de descrever) e, por alimento, itens (campo "Outro…").
+  const [mealMatches, setMealMatches] = useState<CustomMeal[]>([])
+  const [itemMatches, setItemMatches] = useState<Record<string, CustomMeal[]>>({})
   const [picked, setPicked] = useState<CustomMeal | null>(null)
   const [form, setForm] = useState<Form | null>(null)
   const [aiNotes, setAiNotes] = useState<string[]>([])
@@ -71,14 +73,43 @@ export function OffPlanSheet({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Busca refeições já registradas enquanto digita (com uma pequena pausa, para não buscar a cada letra).
   useEffect(() => {
-    fetchCustomMeals()
-      .then(setLibrary)
-      .catch(() => setLibrary([]))
-  }, [])
+    let active = true
+    const id = window.setTimeout(() => {
+      searchCustomMealsInDb('meal', text)
+        .then((rows) => active && setMealMatches(rows))
+        .catch(() => active && setMealMatches([]))
+    }, 250)
+    return () => {
+      active = false
+      window.clearTimeout(id)
+    }
+  }, [text])
 
-  const matches = picked || form ? [] : searchCustomMeals(library, text)
-  const recent = !text.trim() && !picked && !form ? library.slice(0, 5) : []
+  // O mesmo para o "Outro…" de cada alimento: busca alimentos já trocados antes.
+  const customTexts = swaps
+    .filter((s) => customOpen.has(s.item_id))
+    .map((s) => `${s.item_id}=${s.substitution}`)
+    .join('|')
+  useEffect(() => {
+    let active = true
+    const id = window.setTimeout(() => {
+      const pairs = customTexts ? customTexts.split('|').map((p) => p.split('=') as [string, string]) : []
+      Promise.all(pairs.map(([itemId, typed]) => searchCustomMealsInDb('item', typed, 4).then((rows) => [itemId, rows] as const)))
+        .then((results) => active && setItemMatches(Object.fromEntries(results)))
+        .catch(() => active && setItemMatches({}))
+    }, 250)
+    return () => {
+      active = false
+      window.clearTimeout(id)
+    }
+  }, [customTexts])
+
+  const matches = picked || form ? [] : mealMatches
+  /** Sugestões do "Outro…" de um alimento (sem repetir o que já está escrito). */
+  const itemSuggestions = (itemId: string, typed: string) =>
+    typed.trim() ? (itemMatches[itemId] ?? []).filter((m) => fold(m.name) !== fold(typed.trim())) : []
   const aiReady = !!access?.vip && access.consented && access.monthSpentUsd < access.monthLimitUsd
 
   const swapFor = (itemId: string) => swaps.find((s) => s.item_id === itemId)?.substitution ?? ''
@@ -120,7 +151,8 @@ export function OffPlanSheet({
   async function withNutrition(swap: Swap): Promise<Swap> {
     if (swap.kcal !== null && swap.kcal !== undefined) return swap
     const key = swap.substitution.trim()
-    const known = library.find((m) => fold(m.name) === fold(key))
+    // Alimento já calculado antes (de preferência como alimento; senão, qualquer um com o mesmo nome).
+    const known = await findCustomMealByName(key, 'item')
     if (known) {
       await touchCustomMeal(known)
       return { ...swap, kcal: known.kcal, protein_g: known.protein_g, carbs_g: known.carbs_g, fat_g: known.fat_g }
@@ -134,7 +166,7 @@ export function OffPlanSheet({
     if (!result.ok) return swap
     const e = result.estimate
     onAccessChange({ ...access!, monthSpentUsd: access!.monthSpentUsd + result.costUsd })
-    const saved = await createCustomMeal({
+    await createCustomMeal({
       name: key.slice(0, 80),
       description: e.description?.slice(0, 300) || null,
       kcal: e.kcal,
@@ -142,8 +174,8 @@ export function OffPlanSheet({
       carbs_g: e.carbs_g,
       fat_g: e.fat_g,
       source: 'ai',
+      kind: 'item',
     })
-    setLibrary((list) => [saved, ...list])
     return { ...swap, kcal: e.kcal, protein_g: e.protein_g, carbs_g: e.carbs_g, fat_g: e.fat_g }
   }
 
@@ -230,6 +262,7 @@ export function OffPlanSheet({
           carbs_g: parseNumber(form.carbs_g),
           fat_g: parseNumber(form.fat_g),
           source: fromAi ? 'ai' : 'manual',
+          kind: 'meal',
         })
         food = { custom_meal_id: saved.id, name: saved.name, kcal: saved.kcal, protein_g: saved.protein_g, carbs_g: saved.carbs_g, fat_g: saved.fat_g }
       } else {
@@ -300,15 +333,27 @@ export function OffPlanSheet({
                     </button>
                   </div>
                   {isCustom && (
-                    <input
-                      className="swap-custom"
-                      value={chosen}
-                      maxLength={80}
-                      autoFocus
-                      aria-label={`Troca para ${item.food}`}
-                      placeholder="Alimento e quantidade"
-                      onChange={(e) => chooseSwap(item, e.target.value, true)}
-                    />
+                    <>
+                      <input
+                        className="swap-custom"
+                        value={chosen}
+                        maxLength={80}
+                        autoFocus
+                        aria-label={`Troca para ${item.food}`}
+                        placeholder="Alimento e quantidade"
+                        onChange={(e) => chooseSwap(item, e.target.value, true)}
+                      />
+                      {itemSuggestions(item.id, chosen).length > 0 && (
+                        <div className="swap-suggestions" aria-label="Alimentos que você já trocou">
+                          {itemSuggestions(item.id, chosen).map((m) => (
+                            <button key={m.id} type="button" className="swap-chip swap-suggestion" onClick={() => chooseSwap(item, m.name, true)}>
+                              {m.name}
+                              {m.kcal !== null && <small> · {formatNumber(m.kcal)} kcal</small>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               )
@@ -332,11 +377,11 @@ export function OffPlanSheet({
               autoFocus={swapItems.length === 0}
             />
 
-            {(matches.length > 0 || recent.length > 0) && (
+            {matches.length > 0 && (
               <div className="offplan-library">
-                <span className="field-caption">{matches.length > 0 ? 'Já comi antes' : 'Recentes'}</span>
+                <span className="field-caption">Já comi antes</span>
                 <ul>
-                  {(matches.length > 0 ? matches : recent).map((m) => (
+                  {matches.map((m) => (
                     <li key={m.id}>
                       <button type="button" className="offplan-choice" onClick={() => pick(m)}>
                         <strong>{m.name}</strong>
