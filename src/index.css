@@ -1385,3 +1385,26 @@ input {
   background: var(--primary);
   color: #fff;
 }
+
+/* Diferença em relação ao plano: acima (laranja) / abaixo (azul) */
+
+.delta {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.delta-up {
+  color: var(--attention-text);
+}
+
+.delta-down {
+  color: var(--blue);
+}
+
+.delta-zero {
+  color: var(--text-muted);
+}
+
+.meal-kcal .delta {
+  font-size: 12px;
+}

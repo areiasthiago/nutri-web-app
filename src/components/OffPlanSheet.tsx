@@ -7,6 +7,7 @@ import type { CustomMeal } from '../lib/customMeals'
 import type { OffPlanFood, Swap } from '../lib/mealLogs'
 import { formatNumber } from '../lib/plan'
 import type { MealItem } from '../lib/plan'
+import { fold } from '../lib/planParser'
 import { parseNumber } from '../lib/planDraft'
 import { AiTerms } from './AiTerms'
 
@@ -93,10 +94,57 @@ export function OffPlanSheet({
     })
   }
 
+  const [busyText, setBusyText] = useState<string | null>(null)
+
+  /**
+   * Valores da troca: da lista "Já comi antes" se já existir (sem IA); senão,
+   * estimados pela IA (VIP) e guardados na lista para a próxima vez. Sem IA,
+   * o alimento continua contando pelos valores do plano.
+   */
+  async function withNutrition(swap: Swap): Promise<Swap> {
+    if (swap.kcal !== null && swap.kcal !== undefined) return swap
+    const key = swap.substitution.trim()
+    const known = library.find((m) => fold(m.name) === fold(key))
+    if (known) {
+      await touchCustomMeal(known)
+      return { ...swap, kcal: known.kcal, protein_g: known.protein_g, carbs_g: known.carbs_g, fat_g: known.fat_g }
+    }
+    if (!aiReady) return swap
+    const item = swapItems.find((i) => i.id === swap.item_id)
+    const result = await estimateMealWithAi(
+      `${key} (no lugar de ${item?.food ?? swap.food}${item?.qty_text ? `, ${item.qty_text}` : ''}; ` +
+        'se a troca não disser a quantidade, considere a mesma porção do original)',
+    )
+    if (!result.ok) return swap
+    const e = result.estimate
+    onAccessChange({ ...access!, monthSpentUsd: access!.monthSpentUsd + result.costUsd })
+    const saved = await createCustomMeal({
+      name: key.slice(0, 80),
+      description: e.description?.slice(0, 300) || null,
+      kcal: e.kcal,
+      protein_g: e.protein_g,
+      carbs_g: e.carbs_g,
+      fat_g: e.fat_g,
+      source: 'ai',
+    })
+    setLibrary((list) => [saved, ...list])
+    return { ...swap, kcal: e.kcal, protein_g: e.protein_g, carbs_g: e.carbs_g, fat_g: e.fat_g }
+  }
+
   async function confirmSwaps() {
     setError(null)
     setBusy(true)
-    const ok = await onConfirmSwaps(swaps)
+    let enriched = swaps
+    try {
+      if (swaps.some((s) => s.kcal === null || s.kcal === undefined)) {
+        setBusyText('Calculando as trocas…')
+        enriched = await Promise.all(swaps.map(withNutrition))
+      }
+    } catch {
+      // Sem cálculo, salva assim mesmo: o alimento conta pelos valores do plano.
+    }
+    setBusyText(null)
+    const ok = await onConfirmSwaps(enriched)
     setBusy(false)
     if (ok) onClose()
   }
@@ -248,7 +296,7 @@ export function OffPlanSheet({
               )
             })}
             <button type="button" className="btn btn-primary" disabled={busy} onClick={confirmSwaps}>
-              {doneOnPlan ? 'Salvar trocas' : 'Salvar trocas e marcar como feita'}
+              {busyText ?? (doneOnPlan ? 'Salvar trocas' : 'Salvar trocas e marcar como feita')}
             </button>
             <div className="divider">ou</div>
           </section>

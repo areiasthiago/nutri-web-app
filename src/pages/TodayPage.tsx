@@ -5,7 +5,17 @@ import { OffPlanSheet } from '../components/OffPlanSheet'
 import { WaterCard } from '../components/WaterCard'
 import { fetchAiAccess } from '../lib/ai'
 import type { AiAccess } from '../lib/ai'
-import { consumedTotals, fetchMealLogs, isOffPlan, markMealDone, markMealOffPlan, unmarkMeal, updateSwaps } from '../lib/mealLogs'
+import {
+  consumedTotals,
+  fetchMealLogs,
+  isOffPlan,
+  markMealDone,
+  markMealOffPlan,
+  mealActualTotals,
+  planDeviation,
+  unmarkMeal,
+  updateSwaps,
+} from '../lib/mealLogs'
 import type { MealLog, OffPlanFood, Swap } from '../lib/mealLogs'
 import {
   CURRENT_MEAL_WINDOW_MIN,
@@ -53,6 +63,20 @@ function CheckIcon() {
   )
 }
 
+/** "+92" (acima do plano) ou "−40" (abaixo), arredondado. */
+function DeltaText({ value, unit = '' }: { value: number; unit?: string }) {
+  const n = Math.round(value)
+  if (n === 0) return <span className="delta delta-zero"> 0{unit}</span>
+  return (
+    <span className={`delta ${n > 0 ? 'delta-up' : 'delta-down'}`}>
+      {' '}
+      {n > 0 ? '+' : '−'}
+      {formatNumber(Math.abs(n))}
+      {unit}
+    </span>
+  )
+}
+
 const doneTime = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
 
 type MealCardProps = {
@@ -70,8 +94,11 @@ function MealCard({ meal, badge, late, log, busy, onToggle, onChange }: MealCard
   const totals = sumItems(meal.meal_items)
   const done = !!log
   const offPlan = isOffPlan(log)
+  // O que foi comido (com trocas e "fora do plano"); sem marcação, o do plano.
+  const actual = log ? mealActualTotals(meal, log) : totals
   const swaps = offPlan ? [] : (log?.swaps ?? [])
   const swapFor = (itemId: string) => swaps.find((sw) => sw.item_id === itemId)?.substitution ?? ''
+  const swapKcal = (itemId: string) => swaps.find((sw) => sw.item_id === itemId)?.kcal ?? null
 
   function handleCheck(e: MouseEvent) {
     // O botão fica dentro do <summary>: sem isto, o toque também abriria/fecharia o cartão.
@@ -104,7 +131,10 @@ function MealCard({ meal, badge, late, log, busy, onToggle, onChange }: MealCard
           {!done && !badge && late && <span className="meal-badge meal-badge-late">Não marcada</span>}
         </span>
         <span className="meal-kcal">
-          {offPlan ? (log!.actual_kcal !== null ? `${formatNumber(log!.actual_kcal)} kcal` : '') : `${formatNumber(totals.kcal)} kcal`}
+          {formatNumber(actual.kcal)} kcal
+          {done && Math.round(actual.kcal - totals.kcal) !== 0 && (
+            <DeltaText value={actual.kcal - totals.kcal} />
+          )}
         </span>
       </summary>
       {offPlan && (
@@ -125,7 +155,12 @@ function MealCard({ meal, badge, late, log, busy, onToggle, onChange }: MealCard
                 <span className={chosen ? 'meal-item-swapped' : undefined}>{item.food}</span>
                 <span className="meal-item-qty">{item.qty_text}</span>
               </div>
-              {chosen && <p className="meal-item-swapto">Troca: {chosen}</p>}
+              {chosen && (
+                <p className="meal-item-swapto">
+                  Troca: {chosen}
+                  {swapKcal(item.id) !== null && <span className="muted"> · {formatNumber(swapKcal(item.id)!)} kcal</span>}
+                </p>
+              )}
             </li>
           )
         })}
@@ -286,6 +321,7 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
   const highlighted = highlightedMealIndex(plan.meals, now, doneIds)
   const dayTotals = sumItems(plan.meals.flatMap((m) => m.meal_items))
   const consumed = consumedTotals(plan.meals, byMeal)
+  const deviation = planDeviation(plan.meals, byMeal)
 
   function badgeFor(index: number): string | null {
     if (index !== highlighted) return null
@@ -368,6 +404,14 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
             {plan.target_kcal !== null && (
               <span className="muted"> · {Math.round((consumed.kcal / plan.target_kcal) * 100)}% da meta</span>
             )}
+          </p>
+        )}
+        {doneCount > 0 && (
+          <p>
+            <span className="muted">Diferença do plano nessas refeições:</span>
+            <br />
+            <DeltaText value={deviation.kcal} unit=" kcal" /> · P<DeltaText value={deviation.protein_g} unit=" g" /> ·
+            C<DeltaText value={deviation.carbs_g} unit=" g" /> · G<DeltaText value={deviation.fat_g} unit=" g" />
           </p>
         )}
         <p>

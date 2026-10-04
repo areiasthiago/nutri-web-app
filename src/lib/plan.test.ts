@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { highlightedMealIndex, localDateIn, nowMinutesIn } from './plan'
 import type { Meal } from './plan'
-import { consumedTotals } from './mealLogs'
+import { consumedTotals, mealActualTotals, planDeviation } from './mealLogs'
 import type { MealLog } from './mealLogs'
 
 const SP = 'America/Sao_Paulo'
@@ -92,5 +92,41 @@ describe('consumedTotals: o que foi comido no dia', () => {
 
   it('nada marcado, nada consumido', () => {
     expect(consumedTotals(meals, new Map()).kcal).toBe(0)
+  })
+})
+
+describe('trocas com valores calculados e diferença do plano', () => {
+  const item = (id: string, kcal: number, protein_g: number) => ({
+    id, food: id, qty_text: '', qty_value: null, qty_unit: null,
+    kcal, protein_g, carbs_g: 0, fat_g: 0, position: 0, substitutions: [],
+  })
+  const colacao: Meal = {
+    id: 'colacao', name: 'Colação', time: '10:00:00', position: 0,
+    meal_items: [item('banana', 59, 1), item('leite-desnatado', 72, 7)],
+  }
+  const base = { id: 'l', log_date: '2026-10-04', done_at: '', custom_meal_id: null, actual_name: null,
+    actual_kcal: null, actual_protein_g: null, actual_carbs_g: null, actual_fat_g: null }
+
+  it('alimento trocado conta pelos valores da troca', () => {
+    const log: MealLog = { ...base, meal_id: 'colacao',
+      swaps: [{ item_id: 'leite-desnatado', food: 'Leite desnatado', substitution: 'Leite em pó integral', kcal: 99, protein_g: 5 }] }
+    expect(mealActualTotals(colacao, log)).toMatchObject({ kcal: 158, protein_g: 6 })
+  })
+
+  it('troca sem valores calculados mantém os valores do plano', () => {
+    const log: MealLog = { ...base, meal_id: 'colacao',
+      swaps: [{ item_id: 'leite-desnatado', food: 'Leite desnatado', substitution: 'Leite em pó integral' }] }
+    expect(mealActualTotals(colacao, log).kcal).toBe(131)
+  })
+
+  it('diferença do plano: positiva acima, negativa abaixo, só nas marcadas', () => {
+    const jantar: Meal = { id: 'jantar', name: 'Jantar', time: '19:00:00', position: 1, meal_items: [item('carne', 300, 40)] }
+    const logs = new Map<string, MealLog>([
+      ['colacao', { ...base, meal_id: 'colacao',
+        swaps: [{ item_id: 'leite-desnatado', food: 'x', substitution: 'y', kcal: 99, protein_g: 5 }] }],
+    ])
+    expect(planDeviation([colacao, jantar], logs)).toMatchObject({ kcal: 27, protein_g: -2 })
+    logs.set('jantar', { ...base, meal_id: 'jantar', swaps: [], actual_name: 'Sopa', actual_kcal: 180, actual_protein_g: 12 })
+    expect(planDeviation([colacao, jantar], logs)).toMatchObject({ kcal: 27 - 120, protein_g: -2 - 28 })
   })
 })
