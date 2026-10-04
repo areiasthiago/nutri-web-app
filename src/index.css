@@ -1343,15 +1343,22 @@ input {
   gap: 10px;
 }
 
-.swap-item p {
-  margin: 0 0 6px;
-  font-weight: 600;
-}
-
+/* Um grupo por linha; se não couber, a linha rola para o lado. */
 .swap-chips {
   display: flex;
-  flex-wrap: wrap;
   gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.swap-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.swap-chip {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .swap-chip {

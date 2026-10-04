@@ -175,48 +175,44 @@ export function OffPlanSheet({
         aria-labelledby="offplan-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="offplan-title">{swapItems.length > 0 ? `O que mudou no ${mealName}?` : `O que você comeu no lugar de ${mealName}?`}</h2>
+        <h2 id="offplan-title">Trocas · {mealName}</h2>
 
         {!picked && !form && swapItems.length > 0 && (
           <section className="swap-section" aria-label="Trocas do plano">
-            <span className="field-caption">Trocas do plano</span>
+            {/* Um grupo por linha: o alimento do plano (já selecionado) e as trocas previstas. */}
             {swapItems.map((item) => {
               const chosen = swapFor(item.id)
               return (
-                <div key={item.id} className="swap-item">
-                  <p>
-                    {item.food} <small className="muted">{item.qty_text}</small>
-                  </p>
-                  <div className="swap-chips" role="radiogroup" aria-label={`Troca para ${item.food}`}>
+                <div key={item.id} className="swap-chips" role="radiogroup" aria-label={`Opções para ${item.food}`}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={!chosen}
+                    className={`swap-chip${!chosen ? ' is-selected' : ''}`}
+                    onClick={() => chooseSwap(item, '')}
+                  >
+                    {item.food}
+                    {item.qty_text && ` (${item.qty_text})`}
+                  </button>
+                  {item.substitutions.map((sub) => (
                     <button
+                      key={sub.id}
                       type="button"
                       role="radio"
-                      aria-checked={!chosen}
-                      className={`swap-chip${!chosen ? ' is-selected' : ''}`}
-                      onClick={() => chooseSwap(item, '')}
+                      aria-checked={chosen === sub.text}
+                      className={`swap-chip${chosen === sub.text ? ' is-selected' : ''}`}
+                      onClick={() => chooseSwap(item, sub.text)}
                     >
-                      Como no plano
+                      {sub.text}
                     </button>
-                    {item.substitutions.map((sub) => (
-                      <button
-                        key={sub.id}
-                        type="button"
-                        role="radio"
-                        aria-checked={chosen === sub.text}
-                        className={`swap-chip${chosen === sub.text ? ' is-selected' : ''}`}
-                        onClick={() => chooseSwap(item, sub.text)}
-                      >
-                        {sub.text}
-                      </button>
-                    ))}
-                  </div>
+                  ))}
                 </div>
               )
             })}
             <button type="button" className="btn btn-primary" disabled={busy} onClick={confirmSwaps}>
-              {doneOnPlan ? 'Salvar trocas' : 'Marcar com estas trocas'}
+              {doneOnPlan ? 'Salvar trocas' : 'Salvar trocas e marcar como feita'}
             </button>
-            <div className="divider">ou comi outra coisa</div>
+            <div className="divider">ou</div>
           </section>
         )}
 
@@ -228,7 +224,7 @@ export function OffPlanSheet({
               maxLength={300}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Ex.: pipoca de panela, 1 tigela média"
+              placeholder="Descreva sua refeição, quantidades, peso, etc."
               autoFocus={swapItems.length === 0}
             />
 
@@ -255,7 +251,7 @@ export function OffPlanSheet({
               </button>
             )}
             <button type="button" className="btn btn-outline-neutral" disabled={busy} onClick={handleManual}>
-              Preencher à mão
+              Trocar à mão
             </button>
           </>
         )}
@@ -287,11 +283,11 @@ export function OffPlanSheet({
             )}
             <label className="field">
               <span>O que você comeu</span>
-              <input value={form.name} maxLength={80} onChange={(e) => setField('name', e.target.value)} />
+              <input value={form.name} maxLength={80} onChange={(e) => setField('name', e.target.value)} placeholder="Nome da refeição" />
             </label>
             <label className="field">
               <span>Quantidade</span>
-              <input value={form.description} maxLength={300} onChange={(e) => setField('description', e.target.value)} placeholder="Ex.: 1 tigela média" />
+              <input value={form.description} maxLength={300} onChange={(e) => setField('description', e.target.value)} placeholder="Quantidade, peso, etc." />
             </label>
             <div className="field-grid">
               <label className="field">
@@ -311,10 +307,6 @@ export function OffPlanSheet({
                 <input inputMode="decimal" value={form.fat_g} onChange={(e) => setField('fat_g', e.target.value)} />
               </label>
             </div>
-            <small className="muted">
-              {fromAi ? 'Valores estimados pela IA; ajuste se souber os certos. ' : ''}Fica salvo em "Já comi antes"
-              para a próxima vez.
-            </small>
             <button type="submit" className="btn btn-primary" disabled={busy}>
               {busy ? 'Salvando…' : 'Marcar refeição'}
             </button>

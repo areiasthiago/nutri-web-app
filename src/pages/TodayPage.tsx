@@ -72,7 +72,6 @@ function MealCard({ meal, badge, late, log, busy, onToggle, onChange }: MealCard
   const offPlan = isOffPlan(log)
   const swaps = offPlan ? [] : (log?.swaps ?? [])
   const swapFor = (itemId: string) => swaps.find((sw) => sw.item_id === itemId)?.substitution ?? ''
-  const hasSwapOptions = meal.meal_items.some((i) => i.substitutions.length > 0)
 
   function handleCheck(e: MouseEvent) {
     // O botão fica dentro do <summary>: sem isto, o toque também abriria/fecharia o cartão.
@@ -132,13 +131,7 @@ function MealCard({ meal, badge, late, log, busy, onToggle, onChange }: MealCard
         })}
       </ul>
       <button type="button" className="btn-link meal-offplan-link" onClick={onChange} disabled={busy}>
-        {offPlan
-          ? 'Trocar o que comi'
-          : swaps.length > 0
-            ? 'Mudar trocas ou o que comi'
-            : hasSwapOptions
-              ? 'Troquei algo / comi outra coisa'
-              : 'Comi outra coisa'}
+        Fazer trocas
       </button>
     </details>
   )
