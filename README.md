@@ -1,4 +1,6 @@
-# Nutri Helper
+# Nutriê
+
+<img src="src/assets/brand/logo-lockup.svg" alt="Nutriê" width="360">
 
 Web app (PWA) para acompanhar no dia a dia o plano alimentar e a ingestão de água. Ver o
 briefing completo em [`refs/BRIEFING_app_plano_alimentar.md`](refs/BRIEFING_app_plano_alimentar.md).

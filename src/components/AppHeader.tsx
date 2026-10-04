@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import logoMark from '../assets/logo-mark.png'
+import logoMark from '../assets/logo-mark.svg'
 import { useAuth } from '../auth/AuthProvider'
 import { useProfile } from '../lib/profile'
 import { ThemeToggle } from './ThemeToggle'
+import { Wordmark } from './Wordmark'
 
 function MenuIcon({ open }: { open: boolean }) {
   return (
@@ -43,9 +44,9 @@ export function AppHeader() {
 
   return (
     <header className="app-header">
-      <Link to="/" className="app-brand" aria-label="Nutri Helper, ir para Hoje">
-        <img src={logoMark} alt="" className="app-brand-logo" width={32} height={32} />
-        <span>Nutri Helper</span>
+      <Link to="/" className="app-brand" aria-label="Nutriê, ir para Hoje">
+        <img src={logoMark} alt="" className="app-brand-logo" width={36} height={33} />
+        <Wordmark height={26} />
       </Link>
 
       <div className="app-header-actions" ref={menuRef}>

@@ -25,6 +25,9 @@
   --attention-bg: #fdf1e1;
   --attention-text: #7a4600;
 
+  /* Cor das letras do nome (Wordmark). */
+  --wordmark: #104030;
+
   /* No escuro o logo ganha fundo branco (ver .login-logo). */
   --logo-bg: transparent;
   --logo-pad: 0;
@@ -56,6 +59,7 @@
     --primary-hover: #1a6b4a;
     --logo-bg: #ffffff;
     --logo-pad: 10px;
+    --wordmark: #e7ece9;
   }
 }
 
@@ -76,6 +80,7 @@
   --primary-hover: #1a6b4a;
   --logo-bg: #ffffff;
   --logo-pad: 10px;
+  --wordmark: #e7ece9;
 }
 
 * {
@@ -1221,4 +1226,26 @@ input {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Nome desenhado (Wordmark): cada letra fica por cima da anterior, separada por
+   um fio da cor do fundo, como no logo. */
+.wordmark-letter {
+  fill: currentColor;
+  stroke: var(--bg);
+  stroke-width: 9;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}
+
+.app-brand,
+.brand-title {
+  color: var(--wordmark);
+}
+
+.brand-title {
+  display: flex;
+  justify-content: center;
+  margin: 0;
+  line-height: 0;
 }

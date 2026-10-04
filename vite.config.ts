@@ -9,10 +9,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.png'],
+      includeAssets: ['favicon.png', 'favicon.svg'],
       manifest: {
-        name: 'Nutri Helper',
-        short_name: 'Nutri Helper',
+        name: 'Nutriê',
+        short_name: 'Nutriê',
         description: 'Acompanhe seu plano alimentar e sua ingestão de água no dia a dia.',
         lang: 'pt-BR',
         start_url: '/nutri-web-app/',

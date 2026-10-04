@@ -35,3 +35,6 @@ refs/
 *.njsproj
 *.sln
 *.sw?
+
+# Fonte baixada só para gerar o logo (scripts/brand)
+scripts/brand/*.ttf

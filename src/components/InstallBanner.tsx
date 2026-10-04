@@ -42,7 +42,7 @@ export function InstallBanner() {
             aria-labelledby="install-sheet-title"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 id="install-sheet-title">Instalar o Nutri Helper</h2>
+            <h2 id="install-sheet-title">Instalar o Nutriê</h2>
             <InstallInstructions />
             <button type="button" className="btn-link" onClick={() => setSheetOpen(false)}>
               Fechar

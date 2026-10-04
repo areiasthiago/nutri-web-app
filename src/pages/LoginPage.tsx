@@ -2,7 +2,8 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
-import logoMark from '../assets/logo-mark.png'
+import logoMark from '../assets/logo-mark.svg'
+import { Wordmark } from '../components/Wordmark'
 
 // "G" oficial do Google, nas cores da marca (permitido pelas diretrizes de
 // botão "Sign in with Google"; não recolorir).
@@ -78,8 +79,10 @@ export function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-brand">
-          <img src={logoMark} alt="" className="login-logo" width={44} height={44} />
-          <h1>Nutri Helper</h1>
+          <img src={logoMark} alt="" className="login-logo" width={52} height={48} />
+          <h1 className="brand-title">
+            <Wordmark height={40} />
+          </h1>
         </div>
         <p className="login-subtitle">Entre para ver seu plano alimentar, meta de água, lista de compra e muito mais.</p>
 

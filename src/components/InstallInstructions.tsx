@@ -43,7 +43,7 @@ export function InstallInstructions() {
     <>
       {installed ? (
         <p className="banner banner-info">
-          Pronto! Agora abra o <strong>Nutri Helper</strong> pelo ícone na tela inicial do
+          Pronto! Agora abra o <strong>Nutriê</strong> pelo ícone na tela inicial do
           celular.
         </p>
       ) : canPrompt ? (
@@ -59,7 +59,7 @@ export function InstallInstructions() {
             Role e toque em <strong>Adicionar à Tela de Início</strong>.
           </li>
           <li>
-            Abra o <strong>Nutri Helper</strong> pelo ícone que apareceu na tela inicial.
+            Abra o <strong>Nutriê</strong> pelo ícone que apareceu na tela inicial.
           </li>
         </ol>
       ) : (
@@ -71,7 +71,7 @@ export function InstallInstructions() {
             Toque em <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.
           </li>
           <li>
-            Abra o <strong>Nutri Helper</strong> pelo ícone que apareceu na tela inicial.
+            Abra o <strong>Nutriê</strong> pelo ícone que apareceu na tela inicial.
           </li>
         </ol>
       )}

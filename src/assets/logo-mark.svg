@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="190 230 465 425" role="img" aria-label="Nutriê">
+  <!-- Símbolo do Nutriê: tigela com checklist, folhas, tomate e cenoura.
+       Cores da paleta do ds.md: verde #104030, folha #409828, tomate #f85048, cenoura #f09820.
+       O contorno branco (stroke + paint-order) separa os elementos, como no logo original;
+       por isso o símbolo vai sempre sobre fundo claro (no tema escuro ganha fundo branco). -->
+  <g stroke="#fff" stroke-width="9" stroke-linejoin="round" paint-order="stroke">
+    <!-- Folhas da esquerda -->
+    <path fill="#409828" d="M302,437 C262,446 214,424 197,388 C236,372 284,390 302,437 Z" />
+    <path fill="#409828" d="M304,434 C252,424 220,372 223,300 C224,270 239,259 257,262 C326,274 370,332 364,404 C362,426 338,438 304,434 Z" />
+    <!-- Folhas do tomate e da cenoura -->
+    <path fill="#409828" d="M431,331 C413,303 394,289 387,294 C389,316 408,331 431,331 Z" />
+    <path fill="#409828" d="M435,333 C451,309 471,300 481,306 C473,328 453,336 435,333 Z" />
+    <path fill="#409828" d="M549,322 C529,302 527,265 548,238 C567,265 567,302 549,322 Z" />
+    <path fill="#409828" d="M558,327 C575,292 610,265 647,269 C632,302 601,324 558,327 Z" />
+    <!-- Tomate -->
+    <path fill="#f85048" d="M352,402 C348,362 368,338 400,335 C414,334 422,340 428,340 C436,340 446,333 462,335 C490,339 500,368 496,400 C493,428 470,442 424,442 C380,442 355,428 352,402 Z" />
+    <!-- Cenoura -->
+    <path fill="#f09820" d="M512,338 C528,322 566,320 586,334 C600,346 598,370 588,388 C576,408 556,420 532,424 L498,424 C494,392 498,354 512,338 Z" />
+  </g>
+  <!-- Veio da folha grande e brilho do tomate -->
+  <path fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" d="M282,318 C305,354 322,393 334,436" />
+  <path fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" d="M378,384 C378,369 386,360 398,357" />
+  <!-- Tigela (contorno branco separa das frutas) -->
+  <path fill="#104030" stroke="#fff" stroke-width="9" stroke-linejoin="round" paint-order="stroke"
+        d="M211,454 L604,424 C612,423 614,428 613,435 C602,562 520,646 405,646 C290,646 215,562 206,466 C205,458 206,455 211,454 Z" />
+  <!-- Checklist -->
+  <g fill="#fff">
+    <circle cx="420" cy="487" r="21" />
+    <circle cx="420" cy="534" r="21" />
+    <circle cx="420" cy="582" r="21" />
+    <rect x="462" y="481" width="114" height="13" rx="6.5" />
+    <rect x="462" y="528" width="93" height="13" rx="6.5" />
+    <rect x="462" y="576" width="63" height="13" rx="6.5" />
+  </g>
+  <g fill="none" stroke="#104030" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M410,488 l7,7 l13,-14" />
+    <path d="M410,535 l7,7 l13,-14" />
+    <path d="M410,583 l7,7 l13,-14" />
+  </g>
+</svg>

@@ -1,25 +1,29 @@
-# Design system — Nutri Helper
+# Design system — Nutriê
 
-Registro das decisões visuais do app, derivadas do logo oficial, para manter consistência
-nas próximas fatias. Fonte do logo (lockup completo, ícone + texto):
-[`src/assets/brand/logo-lockup-source.png`](src/assets/brand/logo-lockup-source.png) — esse
-arquivo é só a imagem da marca, sem dado pessoal, por isso fica versionado (diferente do
-briefing, que fica fora do Git). O recorte usado no app vem de
-[`src/assets/logo-mark.png`](src/assets/logo-mark.png) (só o ícone, sem o texto).
+Registro das decisões visuais do app, derivadas do logo oficial, para manter consistência.
 
-## Logo
+## Logo e nome
 
-- **Símbolo**: uma tigela (bowl) com folhas, tomate e cenoura saindo por cima, e uma lista
-  de compras/checklist integrada à tigela. Representa literalmente os dois pilares do app:
-  comida (o prato) e acompanhamento (a lista).
-- **Versões**:
-  - Lockup completo (ícone + "Nutri Helper") → arquivo fonte em `refs/`, não entra no app
-    por enquanto (é PNG pesado, pensado para redes sociais/apresentação).
-  - Só o ícone (`logo-mark.png`) → usado dentro do app (tela de login, cabeçalhos).
-  - Ícones do PWA (`public/icons/`) e favicon (`public/favicon.png`) → o mesmo ícone,
-    recortado e com fundo branco sólido (ver "Ícones do PWA" abaixo).
-- **Não usar**: o símbolo sem a tigela (só os vegetais), nem recolorir o símbolo fora da
-  paleta abaixo.
+- **Nome**: **Nutriê** (com circunflexo). No logo, o circunflexo é desenhado com as
+  folhas do tomate do símbolo, espelhadas na vertical, bem perto do "e", para não ser lido
+  como "Nutrié".
+- **Arquivos** (todos versionados; só marca, sem dado pessoal):
+  - [`src/assets/brand/logo-lockup-source.png`](src/assets/brand/logo-lockup-source.png):
+    imagem original enviada pelo Thiago (referência).
+  - [`src/assets/logo-mark.svg`](src/assets/logo-mark.svg): o símbolo (tigela com checklist,
+    folhas, tomate e cenoura), redesenhado em SVG. Usado no app.
+  - [`src/assets/brand/logo-lockup.svg`](src/assets/brand/logo-lockup.svg): símbolo + nome,
+    para uso fora do app (README, divulgação).
+  - [`src/components/Wordmark.tsx`](src/components/Wordmark.tsx): o nome desenhado, usado no
+    cabeçalho, no login e no convite. As letras usam `currentColor` (token `--wordmark`:
+    verde no claro, claro no escuro) e cada letra fica por cima da anterior com um fio da cor
+    do fundo (`.wordmark-letter`), como no logo.
+- **Fonte do nome**: Nunito Black (Google Fonts, licença OFL), convertida em desenho; o app
+  não carrega fonte nenhuma. O nome e o logo completo são **gerados por script** (opentype.js):
+  para mudar, regenere em vez de editar o SVG à mão.
+- **O símbolo tem contornos brancos** entre os elementos (como o original), então vai sempre
+  sobre fundo claro; no tema escuro ganha um fundo branco arredondado (`--logo-bg`).
+- **Não usar**: o símbolo sem a tigela, nem recolorir fora da paleta abaixo.
 
 ## Paleta de cores
 
@@ -61,7 +65,7 @@ hardcoded em componentes.
 
 ## Ícones do PWA
 
-Gerados a partir do mesmo recorte do logo (`src/assets/logo-mark.png`), compostos sobre um
+Gerados a partir de `src/assets/logo-mark.svg` (renderizado no Chrome), compostos sobre um
 quadrado branco sólido:
 
 - `public/icons/icon-192.png` e `icon-512.png`: ícone com ~12% de margem, fundo branco.
@@ -70,12 +74,12 @@ quadrado branco sólido:
   maior), fundo branco **sem** transparência nas bordas — necessário porque ícones
   "maskable" são recortados pelo sistema operacional em formas variadas (círculo, squircle
   etc.) e qualquer conteúdo fora da zona de segurança pode ser cortado.
-- `public/favicon.png`: versão pequena (64×64) do mesmo ícone.
+- `public/favicon.svg` (navegadores atuais) e `public/favicon.png` (64×64): o símbolo sobre
+  fundo branco (arredondado no SVG).
 
-Se o logo for atualizado no futuro, regenerar esses arquivos a partir do novo PNG fonte
-mantendo as mesmas proporções de margem (script usado nesta fatia: recorte do ícone sem o
-texto, `sharp.trim()` para remover a margem transparente, depois compor sobre fundo branco
-nos tamanhos acima).
+Se o logo mudar: atualize `src/assets/logo-mark.svg`, rode
+`node scripts/brand/generate-logo.cjs` (nome e logo completo) e renderize os ícones de novo
+a partir do SVG, mantendo as mesmas margens.
 
 ## Botões e componentes (convenções já em uso)
 
@@ -97,7 +101,7 @@ nos tamanhos acima).
 
 ## Estrutura das telas
 
-- **Telas logadas**: cabeçalho fixo no topo (`.app-header`) com logo + "Nutri Helper" à
+- **Telas logadas**: cabeçalho fixo no topo (`.app-header`) com logo + nome desenhado (Wordmark) à
   esquerda (leva para "Hoje") e, à direita, botão de tema e menu ☰ da conta (e-mail, "Minha
   conta", "Sair"). Ações da conta ficam só no menu, não soltas nas telas.
 - **Telas sem login** (convite e login): sem cabeçalho; o botão de tema flutua no canto
