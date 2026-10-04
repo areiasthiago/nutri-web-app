@@ -135,10 +135,14 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
 - Cabeçalho com menu da conta: "Minha conta" (nome para a saudação, fuso horário, definir ou
   trocar senha) e "Sair".
 - Deploy automático para o GitHub Pages a cada push na `main`.
+- Notificações (prova de ponta a ponta dos lembretes), em "Minha conta": ativar neste aparelho e
+  "Testar com o app fechado". Web Push com chaves VAPID geradas pela Edge Function `push` e guardadas
+  no Vault; o agendamento do banco (`pg_cron` + `pg_net`) chama a função a cada minuto, que envia o
+  que venceu e apaga inscrições expiradas. Inscrições em `push_subscriptions`, testes em `push_tests`.
 
 ## O que ainda não existe (próximas fatias)
 
-Lembretes por notificação, histórico, edição manual do plano, envio de PDF, pessoas da casa, lista de
+Lembretes de refeição e de água (em cima da prova de notificações), pessoas da casa, lista de
 compras e apagar a conta pelo app — na ordem do briefing, seção 11.
 
 ## IA (só VIP)

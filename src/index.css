@@ -1836,3 +1836,14 @@ body.with-bottom-nav .editor-actions {
   margin: 8px 0 0;
   font-size: 13px;
 }
+
+/* Notificações (teste) */
+
+.push-card .btn {
+  width: 100%;
+}
+
+.info-card p.push-test-status {
+  margin: 10px 0 0;
+  font-weight: 600;
+}

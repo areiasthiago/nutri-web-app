@@ -25,6 +25,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'favicon.svg'],
+      // Notificações (push e toque na notificação): public/push-sw.js.
+      workbox: { importScripts: ['push-sw.js'] },
       manifest: {
         name: 'Nutriê',
         short_name: 'Nutriê',

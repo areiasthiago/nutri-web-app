@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthProvider'
 import { AiQuotaBar } from '../components/AiQuota'
+import { PushTestCard } from '../components/PushTestCard'
 import { fetchAiAccess } from '../lib/ai'
 import type { AiAccess } from '../lib/ai'
 import { useProfile } from '../lib/profile'
@@ -55,6 +56,8 @@ export function AccountPage() {
         ← Voltar para Hoje
       </Link>
       <h1 className="page-title">Minha conta</h1>
+
+      <PushTestCard />
 
       <section className="info-card">
         <h2>Acesso</h2>
