@@ -180,3 +180,48 @@ export async function waitForSavedResult(startedAt: Date, timeoutMs = 150_000): 
   }
   return null
 }
+
+// ---------------------------------------------------------------------------
+// Treino e atividades (só VIP; quem não é VIP usa o leitor local e a tabela)
+// ---------------------------------------------------------------------------
+
+type AiCall<T> = { ok: true; data: T; costUsd: number } | { ok: false; error: string }
+
+async function callAi<T>(body: Record<string, unknown>, pick: (data: Record<string, unknown>) => T): Promise<AiCall<T>> {
+  const { data, error } = await client.functions.invoke('ai-extract-plan', { body })
+  if (error) {
+    if (error instanceof FunctionsHttpError) {
+      const res = await error.context.json().catch(() => null)
+      if (res?.error) return { ok: false, error: String(res.error) }
+    }
+    return { ok: false, error: 'Não foi possível falar com a IA agora. Confira a internet e tente de novo.' }
+  }
+  return { ok: true, data: pick(data), costUsd: Number(data.usage?.cost_usd ?? 0) }
+}
+
+export type AiWorkout = {
+  name: string
+  routines: { name: string; exercises: { name: string; sets_text: string; load_text: string; rest_text: string }[] }[]
+  warnings: string[]
+}
+
+/** Lê o PDF do treino com a IA (qualquer formato). */
+export async function readWorkoutWithAi(file: File): Promise<AiCall<AiWorkout>> {
+  if (file.size > MAX_PDF_MB * 1024 * 1024) return { ok: false, error: `O PDF passa de ${MAX_PDF_MB} MB.` }
+  return callAi({ mode: 'workout', pdf_base64: await fileToBase64(file) }, (d) => d.workout as AiWorkout)
+}
+
+export type AiActivity = { name: string; duration_min: number; kcal: number; notes: string[] }
+
+/**
+ * Gasto de uma atividade pela IA: uma rotina do treino com a duração, ou uma
+ * atividade descrita em texto ("caminhei 40 min").
+ */
+export async function estimateActivityWithAi(input: {
+  weight_kg: number | null
+  routine?: { name: string; exercises: { name: string; sets_text: string; load_text: string }[] }
+  duration_min?: number
+  description?: string
+}): Promise<AiCall<AiActivity>> {
+  return callAi({ mode: 'activity', ...input }, (d) => d.activity as AiActivity)
+}

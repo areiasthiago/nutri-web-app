@@ -178,6 +178,17 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
   (`src/lib/marketSections.ts`, com testes); a pessoa pode mudar a seção de um item
   (`food_sections`).
 
+- Meu treino (menu ☰, e passo opcional nos primeiros passos): o PDF do personal é lido pela IA
+  para VIP (qualquer formato, modo `workout` da Edge Function `ai-extract-plan`) ou, sem VIP, pelo
+  leitor no celular (`parseWorkoutPages`, fichas com "Séries / Carga / Intervalo"); sempre revisado
+  antes de salvar, e dá para montar à mão. O cabeçalho com o nome do aluno é descartado. Tabelas
+  `workout_plans`, `workout_routines`, `workout_exercises`; troca pela RPC `replace_active_workout`.
+- "Treinou hoje?" na tela Hoje: "Fiz o Treino A" + duração, ou outra atividade. Gasto estimado
+  pela IA para VIP (modo `activity`; atividade em texto livre) ou pela tabela de MET sem VIP
+  (kcal = MET × 3,5 × peso ÷ 200 × minutos; peso opcional no perfil, 70 kg sem ele). Fica em
+  `activity_logs`, e o Resumo mostra o balanço do dia: registrado − atividades, ao lado da meta.
+  O app só mostra a conta: não sugere comer mais nem compensar.
+
 - Apagar a conta (Minha conta → Apagar conta, confirmando com "APAGAR"): a Edge Function
   `delete-account` apaga o login, e em cascata todos os dados, e tira o e-mail da lista de convites.
 

@@ -1,4 +1,4 @@
-// IA do plano alimentar (Claude), em quatro modos:
+// IA do plano alimentar e do treino (Claude), em seis modos:
 //   - "extract" (padrão): lê o PDF do plano e devolve o plano estruturado;
 //   - "edit": aplica ao plano atual um pedido em texto livre ("atrase o
 //     jantar em uma hora") e devolve o plano inteiro já alterado + a lista
@@ -8,7 +8,10 @@
 //   - "ingredients": quebra itens do plano em ingredientes de mercado, com a
 //     quantidade em cru ("Omelete com 2 ovos e tomate" → ovo 2 un + tomate
 //     30 g), para a lista de compras. Grava em ingredient_maps (nunca por cima
-//     do que a pessoa ajustou à mão).
+//     do que a pessoa ajustou à mão);
+//   - "workout": lê o PDF do treino (rotinas e exercícios) para a tela de revisão;
+//   - "activity": estima o gasto calórico de uma atividade (uma rotina do treino
+//     com a duração, ou uma atividade descrita em texto), para o balanço do dia.
 // Nos modos de plano (extract/edit) o resultado vai para a tela de revisão; o plano em si só é
 // salvo depois que a pessoa confirma. Aqui fica guardado apenas o resultado
 // (ai_plan_extractions), para não se perder se a conexão do celular cair.
@@ -187,6 +190,75 @@ const INGREDIENTS_SCHEMA = {
   },
 }
 
+const WORKOUT_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "routines", "warnings"],
+  properties: {
+    name: { type: "string" },
+    routines: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["name", "exercises"],
+        properties: {
+          name: { type: "string" },
+          exercises: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["name", "sets_text", "load_text", "rest_text"],
+              properties: {
+                name: { type: "string" },
+                sets_text: { type: "string" },
+                load_text: { type: "string" },
+                rest_text: { type: "string" },
+              },
+            },
+          },
+        },
+      },
+    },
+    warnings: stringList,
+  },
+}
+
+const WORKOUT_SYSTEM = `Você transcreve fichas de treino em PDF (feitas por educadores físicos/personal trainers brasileiros) para um formato estruturado. O resultado vai para uma tela de revisão em que a pessoa confere tudo antes de salvar.
+
+Regras:
+- Transcreva só o que está no PDF. Não invente exercícios, séries, cargas nem intervalos, e não dê recomendações.
+- Cada rotina/divisão do treino (Treino A, Treino B, "Membros inferiores", dia 1…) é uma rotina. "name" da rotina curto, como "Treino A: Membros inferiores".
+- Cada exercício: "name" como está; "sets_text" com séries e repetições como escritas (ex.: "4x15", "3x10-12"); "load_text" a carga como escrita (ex.: "20kg", "0kg"; vazio se não houver); "rest_text" o intervalo/descanso como escrito (ex.: "60s"; vazio se não houver). Observações do exercício que não couberem vão em "warnings".
+- Não copie nomes de pessoas (aluno, professor), contatos ou nome da academia para nenhum campo. Em "name" (do treino) use algo curto como "Treino de outubro/2026" (mês/ano se constar) ou "Meu treino".
+- "warnings": dúvidas, partes ilegíveis ou o que não coube, em frases curtas. Lista vazia se nada.
+- Se o PDF não for uma ficha de treino, devolva "routines" vazio e explique em "warnings".`
+
+const ACTIVITY_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["name", "duration_min", "kcal", "notes"],
+  properties: {
+    name: { type: "string" },
+    duration_min: { type: "number" },
+    kcal: { type: "number" },
+    notes: stringList,
+  },
+}
+
+const ACTIVITY_SYSTEM = `Você estima o gasto calórico de uma atividade física que a pessoa já fez, para o app mostrar o balanço do dia dela (calorias registradas menos gasto).
+
+Regras:
+- Use valores de referência (MET do Compendium of Physical Activities) e a fórmula kcal = MET × 3,5 × peso (kg) ÷ 200 × minutos. Considere o tipo de atividade, a intensidade provável e, para musculação, os exercícios, séries e cargas informados.
+- Se o peso não for informado, use 70 kg e diga isso em "notes".
+- Para atividade descrita em texto, tire a duração do texto; se não houver, assuma uma duração comum e diga qual em "notes". "duration_min" é a duração considerada, em minutos inteiros.
+- "name": nome curto da atividade, com inicial maiúscula (ex.: "Caminhada", "Futebol", "Treino A: Membros inferiores").
+- "kcal": gasto total da atividade, número inteiro (não some o metabolismo de repouso de forma separada).
+- "notes": premissas usadas, em frases curtas (ex.: "Considerei intensidade moderada, MET 3,5").
+- Não dê recomendações de alimentação nem sugira comer mais ou compensar. Não julgue.
+- Se o texto não descrever uma atividade física, devolva kcal 0 e explique em "notes".`
+
 const INGREDIENTS_SYSTEM = `Você transforma itens de um plano alimentar em ingredientes de supermercado, para montar a lista de compras da semana. Cada item é UMA porção, como está no plano (alimento + quantidade).
 
 Regras:
@@ -238,7 +310,7 @@ Regras:
 - "warnings": dúvidas ou partes do pedido que não foram aplicadas, em frases curtas. Lista vazia se nada.
 - Não inclua nomes de pessoas em nenhum campo.`
 
-type Mode = "extract" | "edit" | "estimate" | "ingredients"
+type Mode = "extract" | "edit" | "estimate" | "ingredients" | "workout" | "activity"
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS })
@@ -293,13 +365,38 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: "Envio inválido." }, 400)
   }
-  const mode: Mode =
-    body?.mode === "edit" ? "edit" : body?.mode === "estimate" ? "estimate" : body?.mode === "ingredients" ? "ingredients" : "extract"
+  const modes: Mode[] = ["edit", "estimate", "ingredients", "workout", "activity"]
+  const mode: Mode = modes.includes(body?.mode as Mode) ? (body.mode as Mode) : "extract"
   type IngredientItem = { key: string; food: string; qty_text: string }
   let ingredientItems: IngredientItem[] = []
 
   let content: Anthropic.ContentBlockParam[]
-  if (mode === "extract") {
+  if (mode === "workout") {
+    const pdfBase64 = String(body?.pdf_base64 ?? "")
+    if (!pdfBase64) return json({ error: "Nenhum PDF recebido." }, 400)
+    if (pdfBase64.length * 0.75 > MAX_PDF_BYTES) return json({ error: "O PDF passa de 10 MB." }, 413)
+    content = [
+      { type: "document", source: { type: "base64", media_type: "application/pdf", data: pdfBase64 } },
+      { type: "text", text: "Transcreva esta ficha de treino no formato pedido." },
+    ]
+  } else if (mode === "activity") {
+    const weight = Number(body?.weight_kg)
+    const weightText = Number.isFinite(weight) && weight >= 25 && weight <= 400 ? `${weight} kg` : "não informado"
+    const description = String(body?.description ?? "").trim()
+    const routine = body?.routine as { name?: string; exercises?: { name?: string; sets_text?: string; load_text?: string }[] } | undefined
+    const duration = Math.round(Number(body?.duration_min))
+    if (routine && routine.name) {
+      if (!Number.isFinite(duration) || duration < 1 || duration > 600) return json({ error: "Informe a duração em minutos." }, 400)
+      const exercises = (routine.exercises ?? []).slice(0, 40).map((e) => `- ${String(e.name ?? "").slice(0, 100)} (${String(e.sets_text ?? "").slice(0, 30)}, carga ${String(e.load_text ?? "").slice(0, 30) || "não informada"})`)
+      content = [{ type: "text", text: `Peso da pessoa: ${weightText}.\nAtividade: musculação, rotina "${String(routine.name).slice(0, 80)}", duração ${duration} minutos.\nExercícios:\n${exercises.join("\n")}` }]
+    } else {
+      if (!description) return json({ error: "Descreva a atividade." }, 400)
+      if (description.length > MAX_DESCRIPTION_CHARS) {
+        return json({ error: `A descrição passa de ${MAX_DESCRIPTION_CHARS} caracteres.` }, 400)
+      }
+      content = [{ type: "text", text: `Peso da pessoa: ${weightText}.\nAtividade que a pessoa fez:\n<atividade>\n${description}\n</atividade>` }]
+    }
+  } else if (mode === "extract") {
     const pdfBase64 = String(body?.pdf_base64 ?? "")
     if (!pdfBase64) return json({ error: "Nenhum PDF recebido." }, 400)
     if (pdfBase64.length * 0.75 > MAX_PDF_BYTES) return json({ error: "O PDF passa de 10 MB." }, 413)
@@ -348,8 +445,14 @@ ${description}
     ]
   }
 
-  const schema =
-    mode === "extract" ? EXTRACT_SCHEMA : mode === "edit" ? EDIT_SCHEMA : mode === "ingredients" ? INGREDIENTS_SCHEMA : ESTIMATE_SCHEMA
+  const schema = {
+    extract: EXTRACT_SCHEMA,
+    edit: EDIT_SCHEMA,
+    estimate: ESTIMATE_SCHEMA,
+    ingredients: INGREDIENTS_SCHEMA,
+    workout: WORKOUT_SCHEMA,
+    activity: ACTIVITY_SCHEMA,
+  }[mode]
   // O Haiku 4.5 não aceita "effort".
   const outputConfig = model.startsWith("claude-haiku")
     ? { format: { type: "json_schema", schema } }
@@ -361,8 +464,14 @@ ${description}
     response = await client.messages.create({
       model,
       max_tokens: 16000,
-      system:
-        mode === "extract" ? EXTRACT_SYSTEM : mode === "edit" ? EDIT_SYSTEM : mode === "ingredients" ? INGREDIENTS_SYSTEM : ESTIMATE_SYSTEM,
+      system: {
+        extract: EXTRACT_SYSTEM,
+        edit: EDIT_SYSTEM,
+        estimate: ESTIMATE_SYSTEM,
+        ingredients: INGREDIENTS_SYSTEM,
+        workout: WORKOUT_SYSTEM,
+        activity: ACTIVITY_SYSTEM,
+      }[mode],
       output_config: outputConfig,
       messages: [{ role: "user", content }],
     } as Anthropic.MessageCreateParamsNonStreaming)
@@ -373,7 +482,7 @@ ${description}
     if (err instanceof Anthropic.BadRequestError) {
       console.error("anthropic bad request", mode, err.status)
       return json({
-        error: mode === "extract"
+        error: mode === "extract" || mode === "workout"
           ? "A IA não conseguiu abrir este PDF. Confira se o arquivo não está protegido por senha."
           : "A IA não conseguiu processar este pedido. Tente escrever de outro jeito.",
       }, 422)
@@ -395,8 +504,14 @@ ${description}
   const cost = (inputTokens * price.input + outputTokens * price.output) / 1_000_000
   await admin.from("ai_usage").insert({
     user_id: userId,
-    feature:
-      mode === "extract" ? "extract_plan" : mode === "edit" ? "edit_plan" : mode === "ingredients" ? "shopping_ingredients" : "estimate_meal",
+    feature: {
+      extract: "extract_plan",
+      edit: "edit_plan",
+      estimate: "estimate_meal",
+      ingredients: "shopping_ingredients",
+      workout: "extract_workout",
+      activity: "estimate_activity",
+    }[mode],
     model,
     input_tokens: inputTokens,
     output_tokens: outputTokens,
@@ -420,8 +535,11 @@ ${description}
     return json({ error: "A IA devolveu uma resposta incompleta. Tente de novo.", usage }, 502)
   }
 
-  // Estimativa é rápida e pequena: volta direto, sem guardar.
+  // Estimativas são rápidas e pequenas: voltam direto, sem guardar.
   if (mode === "estimate") return json({ estimate: plan, usage, mode })
+  if (mode === "activity") return json({ activity: plan, usage, mode })
+  // Treino lido: vai direto para a revisão no app.
+  if (mode === "workout") return json({ workout: plan, usage, mode })
 
   // Ingredientes: grava para a lista de compras (sem passar por cima do que
   // a pessoa ajustou à mão) e devolve.

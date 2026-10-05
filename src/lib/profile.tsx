@@ -9,7 +9,7 @@ const client = supabase as SupabaseClient
 
 export const DEFAULT_TIMEZONE = 'America/Sao_Paulo'
 
-export type OnboardingStep = 'boas-vindas' | 'nome' | 'plano' | 'notificacoes' | 'casa' | 'pronto'
+export type OnboardingStep = 'boas-vindas' | 'nome' | 'plano' | 'treino' | 'notificacoes' | 'casa' | 'pronto'
 
 export type Profile = {
   display_name: string | null
@@ -19,9 +19,11 @@ export type Profile = {
   onboarding_done_at: string | null
   /** Dia de compras (0 = domingo … 6 = sábado). */
   shopping_day: number
+  /** Peso (kg), opcional: só para estimar o gasto das atividades. */
+  weight_kg: number | null
 }
 
-const COLUMNS = 'display_name, timezone, onboarding_step, onboarding_done_at, shopping_day'
+const COLUMNS = 'display_name, timezone, onboarding_step, onboarding_done_at, shopping_day, weight_kg'
 
 type ProfileContextValue = {
   profile: Profile
@@ -41,6 +43,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     onboarding_step: null,
     onboarding_done_at: null,
     shopping_day: 6,
+    weight_kg: null,
   })
   const [loaded, setLoaded] = useState(false)
 
@@ -54,7 +57,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       .maybeSingle()
       .then(({ data }) => {
         if (!active) return
-        if (data) setProfile(data as Profile)
+        if (data) setProfile({ ...(data as Profile), weight_kg: data.weight_kg === null ? null : Number(data.weight_kg) })
         setLoaded(true)
       })
     return () => {
@@ -72,7 +75,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         .select(COLUMNS)
         .single()
       if (error) return { error: 'Não foi possível salvar agora. Tente de novo em instantes.' }
-      setProfile(data as Profile)
+      setProfile({ ...(data as Profile), weight_kg: data.weight_kg === null ? null : Number(data.weight_kg) })
       return { error: null }
     },
     [userId],

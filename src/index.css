@@ -2553,3 +2553,85 @@ body.with-bottom-nav .editor-actions {
 .delete-card {
   margin-top: 8px;
 }
+
+/* Meu treino */
+
+.workout-routine ul {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workout-routine li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 15px;
+}
+
+.workout-routine li:last-child {
+  border-bottom: 0;
+}
+
+.workout-routine li .muted {
+  font-size: 13px;
+}
+
+.workout-page > .btn {
+  margin-bottom: 12px;
+}
+
+.workout-editor {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.exercise-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.exercise-row input,
+.exercise-fields input {
+  min-width: 0;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.exercise-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 32px;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Treinou hoje? */
+
+.activity-card .segmented {
+  margin: 0;
+}
+
+.activity-total {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.activity-foot {
+  margin: 0;
+  font-size: 13px;
+}

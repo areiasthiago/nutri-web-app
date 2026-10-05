@@ -10,13 +10,14 @@ import { useProfile } from '../lib/profile'
 import type { OnboardingStep } from '../lib/profile'
 import { currentSubscription, enablePush, pushSupport } from '../lib/push'
 import { timezoneOptions } from '../lib/timezones'
+import { fetchActiveWorkout, parseWeight } from '../lib/workouts'
 
 // Primeiros passos: apresentação em sequência para conta nova, mostrando tudo o
 // que dá para cadastrar além do plano. O passo fica salvo no perfil; sair para
 // cadastrar o plano ou a casa e voltar continua de onde parou. Todo passo
 // termina com a mesma linha "← Voltar | Continuar".
 
-const STEPS: OnboardingStep[] = ['boas-vindas', 'nome', 'plano', 'notificacoes', 'casa', 'pronto']
+const STEPS: OnboardingStep[] = ['boas-vindas', 'nome', 'plano', 'treino', 'notificacoes', 'casa', 'pronto']
 
 type StepProps = {
   onBack: () => void
@@ -101,6 +102,7 @@ export function OnboardingPage() {
       {step === 'boas-vindas' && <Welcome onNext={nav.onNext} />}
       {step === 'nome' && <NameStep {...nav} />}
       {step === 'plano' && <PlanStep {...nav} onLeave={() => leaveTo('/plano/novo?de=comecar')} />}
+      {step === 'treino' && <WorkoutStep {...nav} onLeave={() => leaveTo('/treino?de=comecar')} />}
       {step === 'notificacoes' && <NotificationsStep {...nav} />}
       {step === 'casa' && <HouseStep {...nav} onLeave={() => leaveTo('/casa?de=comecar')} />}
       {step === 'pronto' && <DoneStep onBack={nav.onBack} onNext={finish} />}
@@ -135,12 +137,15 @@ function NameStep({ onBack, onNext }: StepProps) {
   const { profile, saveProfile } = useProfile()
   const [name, setName] = useState(profile.display_name ?? '')
   const [timezone, setTimezone] = useState(profile.timezone)
+  const [weight, setWeight] = useState(profile.weight_kg === null ? '' : String(profile.weight_kg).replace('.', ','))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function save() {
+    const weight_kg = parseWeight(weight)
+    if (weight_kg === undefined) return setError('Peso entre 25 e 400 kg (ou deixe em branco).')
     setBusy(true)
-    const r = await saveProfile({ display_name: name.trim() || null, timezone })
+    const r = await saveProfile({ display_name: name.trim() || null, timezone, weight_kg })
     setBusy(false)
     if (r.error) setError(r.error)
     else onNext()
@@ -148,8 +153,8 @@ function NameStep({ onBack, onNext }: StepProps) {
 
   return (
     <Step>
-      <h1>Como quer ser chamado?</h1>
-      <p className="muted">Para a saudação da tela Hoje.</p>
+      <h1>Sobre você</h1>
+      <p className="muted">Como quer ser chamado na tela Hoje, seu fuso e, se quiser, seu peso.</p>
       <label className="field">
         <span>Nome ou apelido</span>
         <input type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} autoComplete="nickname" placeholder="Ex.: Thiago" />
@@ -164,6 +169,11 @@ function NameStep({ onBack, onNext }: StepProps) {
           ))}
         </select>
         <small className="muted">Os horários das refeições e dos lembretes seguem este fuso.</small>
+      </label>
+      <label className="field">
+        <span>Peso (kg), opcional</span>
+        <input type="text" inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Ex.: 82,5" />
+        <small className="muted">Só para estimar o gasto do treino e das atividades. Dá para preencher depois em Minha conta.</small>
       </label>
       {error && <p className="banner banner-error">{error}</p>}
       <StepNav onBack={onBack} onNext={save} busy={busy} />
@@ -202,6 +212,45 @@ function PlanStep({ onBack, onNext, onLeave }: StepProps & { onLeave: () => void
           </p>
           <button type="button" className="btn btn-outline-neutral step-action" onClick={onLeave}>
             Cadastrar meu plano
+          </button>
+        </>
+      )}
+      <StepNav onBack={onBack} onNext={onNext} />
+    </Step>
+  )
+}
+
+function WorkoutStep({ onBack, onNext, onLeave }: StepProps & { onLeave: () => void }) {
+  const [routines, setRoutines] = useState<number | null | undefined>(undefined)
+
+  useEffect(() => {
+    let active = true
+    fetchActiveWorkout()
+      .then((w) => active && setRoutines(w ? w.workout_routines.length : null))
+      .catch(() => active && setRoutines(null))
+    return () => {
+      active = false
+    }
+  }, [])
+
+  return (
+    <Step>
+      <h1>Seu treino</h1>
+      <p>
+        Opcional. Com o treino do personal cadastrado, você registra na tela Hoje "Fiz o treino A" com a duração, e o
+        gasto estimado sai do balanço do dia. Outras atividades (caminhada, futebol…) também entram.
+      </p>
+      {routines === undefined ? (
+        <p className="muted">Carregando…</p>
+      ) : routines ? (
+        <p className="onboarding-ok">
+          Treino cadastrado: {routines} {routines === 1 ? 'rotina' : 'rotinas'}.
+        </p>
+      ) : (
+        <>
+          <p className="muted">Envie o PDF do treino ou monte à mão. Não treina ou prefere depois? É só continuar: Meu treino fica no menu ☰.</p>
+          <button type="button" className="btn btn-outline-neutral step-action" onClick={onLeave}>
+            Cadastrar meu treino
           </button>
         </>
       )}
@@ -337,6 +386,9 @@ function DoneStep({ onBack, onNext }: StepProps) {
           <strong>Comeu fora de hora?</strong> Descreva na tela Hoje e as calorias entram no dia.
         </li>
         <li>
+          <strong>Treinou?</strong> Registre na tela Hoje e o gasto estimado sai do balanço do dia.
+        </li>
+        <li>
           <strong>Acompanhe a evolução</strong> em Estatísticas, e compartilhe quando mandar bem.
         </li>
         <li>
@@ -344,7 +396,7 @@ function DoneStep({ onBack, onNext }: StepProps) {
         </li>
       </ul>
       <p className="muted">
-        Meu plano, Minha casa, Lista de compras, Estatísticas e Minha conta ficam no menu ☰. Esta apresentação também, em "Primeiros
+        Meu plano, Meu treino, Minha casa, Lista de compras, Estatísticas e Minha conta ficam no menu ☰. Esta apresentação também, em "Primeiros
         passos".
       </p>
       <StepNav onBack={onBack} onNext={onNext} nextLabel="Ir para Hoje" />

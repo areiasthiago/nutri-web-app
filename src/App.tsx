@@ -20,6 +20,7 @@ import { OnboardingPage } from './pages/OnboardingPage'
 import { ShoppingPage } from './pages/ShoppingPage'
 import { StatsPage } from './pages/StatsPage'
 import { TodayPage } from './pages/TodayPage'
+import { WorkoutPage } from './pages/WorkoutPage'
 
 /** Telas logadas: cabeçalho com marca, tema e menu da conta. */
 function SignedInLayout() {
@@ -91,6 +92,7 @@ function App() {
                 <Route path="/casa" element={<HouseholdPage />} />
                 <Route path="/comecar" element={<OnboardingPage />} />
                 <Route path="/compras" element={<ShoppingPage />} />
+                <Route path="/treino" element={<WorkoutPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

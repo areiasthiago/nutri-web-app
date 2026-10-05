@@ -74,6 +74,9 @@ export function AppHeader() {
             <Link to="/plano" className="account-menu-item" onClick={() => setMenuOpen(false)}>
               Meu plano
             </Link>
+            <Link to="/treino" className="account-menu-item" onClick={() => setMenuOpen(false)}>
+              Meu treino
+            </Link>
             <Link to="/estatisticas" className="account-menu-item" onClick={() => setMenuOpen(false)}>
               Estatísticas
             </Link>

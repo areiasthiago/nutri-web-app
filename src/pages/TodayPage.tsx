@@ -3,6 +3,7 @@ import type { MouseEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { scrollToSection } from '../components/BottomNav'
 import type { TodaySection } from '../components/BottomNav'
+import { ActivityCard } from '../components/ActivityCard'
 import { NotificationPrompt } from '../components/NotificationPrompt'
 import { OffPlanSheet } from '../components/OffPlanSheet'
 import { SnackCard } from '../components/SnackCard'
@@ -38,6 +39,8 @@ import type { Meal, Plan, Totals } from '../lib/plan'
 import { useProfile } from '../lib/profile'
 import { addSnack, deleteSnack, fetchSnacks, plusSnacks } from '../lib/snacks'
 import type { SnackLog } from '../lib/snacks'
+import { addActivity, deleteActivity, fetchActivities, netKcal } from '../lib/workouts'
+import type { ActivityLog } from '../lib/workouts'
 
 type LoadState = { status: 'loading' } | { status: 'error' } | { status: 'ready'; plan: Plan | null }
 
@@ -285,6 +288,42 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
   }, [date])
   const snackRows = snacks.date === date ? snacks.rows : []
 
+  // Treino e atividades do dia: o gasto sai do balanço (recarrega quando vira o dia).
+  const [activities, setActivities] = useState<{ date: string; rows: ActivityLog[] }>({ date, rows: [] })
+  useEffect(() => {
+    let active = true
+    fetchActivities(date)
+      .then((rows) => active && setActivities({ date, rows }))
+      .catch(() => active && setActivities({ date, rows: [] }))
+    return () => {
+      active = false
+    }
+  }, [date])
+  const activityRows = activities.date === date ? activities.rows : []
+  const burned = activityRows.reduce((s, a) => s + a.kcal, 0)
+
+  async function addActivityToDay(entry: Omit<ActivityLog, 'id' | 'logged_at' | 'log_date'>): Promise<boolean> {
+    setLogError(null)
+    try {
+      const row = await addActivity({ ...entry, log_date: date })
+      setActivities((s) => ({ date, rows: [...(s.date === date ? s.rows : []), row] }))
+      return true
+    } catch {
+      setLogError('Não foi possível salvar agora. Confira a internet e tente de novo.')
+      return false
+    }
+  }
+
+  async function removeActivity(id: string) {
+    setLogError(null)
+    try {
+      await deleteActivity(id)
+      setActivities((s) => ({ date, rows: s.rows.filter((a) => a.id !== id) }))
+    } catch {
+      setLogError('Não foi possível apagar agora. Confira a internet e tente de novo.')
+    }
+  }
+
   async function addSnackToDay(food: OffPlanFood): Promise<boolean> {
     setLogError(null)
     try {
@@ -467,6 +506,10 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
         </div>
       )}
 
+      <div id="treino" className="today-section">
+        <ActivityCard activities={activityRows} access={aiAccess} onAdd={addActivityToDay} onRemove={removeActivity} />
+      </div>
+
       {offPlanMeal && (
         <OffPlanSheet
           mealName={offPlanMeal.name}
@@ -492,6 +535,19 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
               <span className="muted">
                 {' · '}
                 {Math.round((consumed.kcal / dailyRef) * 100)}% {targetIsTotal ? 'do total do plano' : 'da meta'}
+              </span>
+            )}
+          </p>
+        )}
+        {burned > 0 && (
+          <p>
+            <span className="muted">Balanço do dia (registrado − atividades):</span>
+            <br />
+            {formatNumber(consumed.kcal)} − {formatNumber(burned)} = <strong>{formatNumber(netKcal(consumed.kcal, burned))} kcal</strong>
+            {dailyRef !== null && (
+              <span className="muted">
+                {' · '}
+                {targetIsTotal ? 'total do plano' : 'meta'} {formatNumber(dailyRef)} kcal
               </span>
             )}
           </p>

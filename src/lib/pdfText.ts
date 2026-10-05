@@ -10,13 +10,18 @@ const SAME_LINE_TOLERANCE = 3
 const COLUMN_GAP = 14
 
 export async function extractPdfLines(file: File): Promise<string[]> {
+  return (await extractPdfPages(file)).flat()
+}
+
+/** Como extractPdfLines, mas com as linhas separadas por página. */
+export async function extractPdfPages(file: File): Promise<string[][]> {
   const pdfjs = await import('pdfjs-dist')
   const { default: workerUrl } = await import('pdfjs-dist/build/pdf.worker.min.mjs?url')
   pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
 
   const task = pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) })
   const doc = await task.promise
-  const lines: string[] = []
+  const pages: string[][] = []
 
   for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber++) {
     const page = await doc.getPage(pageNumber)
@@ -26,11 +31,11 @@ export async function extractPdfLines(file: File): Promise<string[]> {
       if (!('str' in item) || !item.str.trim()) continue
       items.push({ str: item.str, x: item.transform[4], y: item.transform[5], width: item.width })
     }
-    lines.push(...groupIntoLines(items))
+    pages.push(groupIntoLines(items))
   }
 
   await task.destroy()
-  return lines
+  return pages
 }
 
 /** Agrupa pedaços de texto por altura (linha) e os junta da esquerda para a direita. */

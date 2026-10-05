@@ -18,6 +18,8 @@ declare
   plan_a uuid;
   meal_a uuid;
   member_a uuid;
+  workout_a uuid;
+  routine_a uuid;
   n int;
   report text := '';
 begin
@@ -58,6 +60,10 @@ begin
   insert into public.food_sections (food_key, section) values ('azeite', 'temperos');
   insert into public.ingredient_maps (item_key, food, ingredients, source) values ('ovo mexido|2 un', 'Ovo mexido', '[{"name":"Ovo","qty_value":2,"qty_unit":"un"}]', 'manual');
   perform public.replace_active_plan('{"origin":"manual","meals":[{"name":"Almoço","time":"12:00"}]}'::jsonb, member_a);
+  workout_a := public.replace_active_workout('{"name":"Treino","origin":"manual","routines":[{"name":"Treino A","exercises":[{"name":"Agachamento","sets_text":"4x15","load_text":"","rest_text":"60s"}]}]}'::jsonb);
+  select id into routine_a from public.workout_routines limit 1;
+  insert into public.activity_logs (log_date, routine_id, name, duration_min, kcal, kcal_source)
+    values (current_date, routine_a, 'Treino A', 50, 300, 'table');
   select count(*) into n from public.plans; report := report || 'A vê planos: ' || n || '; ';
   select count(*) into n from public.ai_plan_extractions; report := report || 'A vê a própria leitura PDF: ' || n || '; ';
   update public.profiles set display_name = 'A' where id = a;
@@ -126,6 +132,30 @@ begin
     report := report || 'B troca o plano da pessoa de A: PERMITIU; ';
   exception when others then
     report := report || 'B troca o plano da pessoa de A: bloqueado (' || sqlstate || '); ';
+  end;
+  select count(*) into n from public.workout_plans; report := report || 'B vê treino de A: ' || n || '; ';
+  select count(*) into n from public.workout_routines; report := report || 'B vê rotinas de A: ' || n || '; ';
+  select count(*) into n from public.workout_exercises; report := report || 'B vê exercícios de A: ' || n || '; ';
+  update public.workout_exercises set load_text = 'x'; get diagnostics n = row_count; report := report || 'B altera exercício de A: ' || n || '; ';
+  begin
+    insert into public.workout_exercises (routine_id, name) values (routine_a, 'Intruso');
+    report := report || 'B insere exercício no treino de A: PERMITIU; ';
+  exception when others then
+    report := report || 'B insere exercício no treino de A: bloqueado (' || sqlstate || '); ';
+  end;
+  select count(*) into n from public.activity_logs; report := report || 'B vê atividades de A: ' || n || '; ';
+  delete from public.activity_logs; get diagnostics n = row_count; report := report || 'B apaga atividade de A: ' || n || '; ';
+  begin
+    insert into public.activity_logs (owner_id, log_date, name, duration_min, kcal, kcal_source) values (a, current_date, 'x', 10, 50, 'table');
+    report := report || 'B registra atividade em nome de A: PERMITIU; ';
+  exception when others then
+    report := report || 'B registra atividade em nome de A: bloqueado (' || sqlstate || '); ';
+  end;
+  begin
+    insert into public.activity_logs (log_date, routine_id, name, duration_min, kcal, kcal_source) values (current_date, routine_a, 'x', 10, 50, 'table');
+    report := report || 'B registra atividade com rotina de A: PERMITIU; ';
+  exception when others then
+    report := report || 'B registra atividade com rotina de A: bloqueado (' || sqlstate || '); ';
   end;
   select count(*) into n from public.food_yields; report := report || 'B vê rendimentos de A: ' || n || '; ';
   select count(*) into n from public.food_sections; report := report || 'B vê seções de A: ' || n || '; ';
