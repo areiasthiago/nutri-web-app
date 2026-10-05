@@ -2620,6 +2620,38 @@ body.with-bottom-nav .editor-actions {
   align-items: center;
 }
 
+/* Primeiros passos: dia de compras */
+
+.onboarding-step .field-label {
+  margin-bottom: 0;
+  font-weight: 600;
+}
+
+.weekday-picker {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.weekday-picker button {
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.weekday-picker button.is-active {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
 /* Treinou hoje? */
 
 .activity-card .segmented {

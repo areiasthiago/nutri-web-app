@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { localDateIn } from '../lib/plan'
 import { useProfile } from '../lib/profile'
 import { SHOPPING_DAYS, buildShoppingList, defaultYield, foodKey, formatAmount, itemKey, ruleIngredients, weekStartFor } from '../lib/shopping'
@@ -37,6 +37,7 @@ const yieldLabel = (y: number) => y.toLocaleString('pt-BR', { maximumFractionDig
 
 export function ShoppingPage() {
   const { profile, loaded, saveProfile } = useProfile()
+  const fromOnboarding = useSearchParams()[0].get('de') === 'comecar'
   const [input, setInput] = useState<ShoppingInput | null>(null)
   const [checks, setChecks] = useState<Set<string> | null>(null)
   const [open, setOpen] = useState<string | null>(null)
@@ -184,8 +185,8 @@ export function ShoppingPage() {
 
   return (
     <div className="page shopping-page">
-      <Link to="/" className="back-link">
-        ← Voltar para Hoje
+      <Link to={fromOnboarding ? '/comecar' : '/'} className="back-link">
+        ← Voltar para {fromOnboarding ? 'os primeiros passos' : 'Hoje'}
       </Link>
       <h1 className="page-title">Lista de compras</h1>
       <div className="shopping-week">

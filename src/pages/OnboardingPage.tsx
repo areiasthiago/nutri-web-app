@@ -5,6 +5,7 @@ import alface from '../assets/mascots/alface.webp'
 import cenoura from '../assets/mascots/cenoura.webp'
 import tomate from '../assets/mascots/tomate.webp'
 import { fetchMembers } from '../lib/household'
+import { SHOPPING_DAYS } from '../lib/shopping'
 import { fetchActivePlan } from '../lib/plan'
 import { useProfile } from '../lib/profile'
 import type { OnboardingStep } from '../lib/profile'
@@ -17,7 +18,7 @@ import { fetchActiveWorkout, parseWeight } from '../lib/workouts'
 // cadastrar o plano ou a casa e voltar continua de onde parou. Todo passo
 // termina com a mesma linha "← Voltar | Continuar".
 
-const STEPS: OnboardingStep[] = ['boas-vindas', 'nome', 'plano', 'treino', 'notificacoes', 'casa', 'pronto']
+const STEPS: OnboardingStep[] = ['boas-vindas', 'nome', 'plano', 'treino', 'notificacoes', 'casa', 'compras', 'pronto']
 
 type StepProps = {
   onBack: () => void
@@ -105,6 +106,7 @@ export function OnboardingPage() {
       {step === 'treino' && <WorkoutStep {...nav} onLeave={() => leaveTo('/treino?de=comecar')} />}
       {step === 'notificacoes' && <NotificationsStep {...nav} />}
       {step === 'casa' && <HouseStep {...nav} onLeave={() => leaveTo('/casa?de=comecar')} />}
+      {step === 'compras' && <ShoppingStep {...nav} onLeave={() => leaveTo('/compras?de=comecar')} />}
       {step === 'pronto' && <DoneStep onBack={nav.onBack} onNext={finish} />}
     </div>
   )
@@ -363,6 +365,51 @@ function HouseStep({ onBack, onNext, onLeave }: StepProps & { onLeave: () => voi
           </button>
         </>
       )}
+      <StepNav onBack={onBack} onNext={onNext} />
+    </Step>
+  )
+}
+
+function ShoppingStep({ onBack, onNext, onLeave }: StepProps & { onLeave: () => void }) {
+  const { profile, saveProfile } = useProfile()
+  const [error, setError] = useState<string | null>(null)
+
+  async function pick(day: number) {
+    setError(null)
+    const r = await saveProfile({ shopping_day: day })
+    if (r.error) setError('Não foi possível salvar agora. Confira a internet e tente de novo.')
+  }
+
+  return (
+    <Step>
+      <h1>Suas compras</h1>
+      <p>
+        A Lista de compras soma o que você (e a casa) vai comer na semana, organizada pelas seções do mercado. A semana
+        começa no dia em que você faz as compras.
+      </p>
+      <p className="field-label">Em que dia você costuma fazer as compras?</p>
+      <div className="weekday-picker" role="radiogroup" aria-label="Dia de compras">
+        {SHOPPING_DAYS.map((d, i) => (
+          <button
+            key={d}
+            type="button"
+            role="radio"
+            aria-checked={profile.shopping_day === i}
+            aria-label={d}
+            className={profile.shopping_day === i ? 'is-active' : ''}
+            onClick={() => void pick(i)}
+          >
+            {d.slice(0, 3)}
+          </button>
+        ))}
+      </div>
+      <p className="muted">
+        {SHOPPING_DAYS[profile.shopping_day]}. Dá para trocar depois, na própria lista (menu ☰).
+      </p>
+      {error && <p className="banner banner-error">{error}</p>}
+      <button type="button" className="btn btn-outline-neutral step-action" onClick={onLeave}>
+        Ver a lista de compras
+      </button>
       <StepNav onBack={onBack} onNext={onNext} />
     </Step>
   )
