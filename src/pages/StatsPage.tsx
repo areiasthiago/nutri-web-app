@@ -4,10 +4,13 @@ import { BarChart } from '../components/BarChart'
 import { CongratsBadge } from '../components/CongratsBadge'
 import type { ShareContent } from '../components/CongratsBadge'
 import { StatTile } from '../components/StatTile'
+import { WeightChart } from '../components/WeightChart'
 import type { StatTileData } from '../components/StatTile'
 import { fetchActivePlan, formatNumber, localDateIn } from '../lib/plan'
 import type { Plan } from '../lib/plan'
 import { useProfile } from '../lib/profile'
+import { fetchWeights, formatKg, formatKgDelta } from '../lib/weight'
+import type { WeightLog } from '../lib/weight'
 import {
   addDays,
   aggregateDays,
@@ -111,6 +114,19 @@ export function StatsPage() {
       active = false
     }
   }, [plan, loaded, fetchFrom, fetchTo])
+
+  // Peso do período (um registro por dia).
+  const [weights, setWeights] = useState<{ key: string; rows: WeightLog[] } | null>(null)
+  useEffect(() => {
+    let active = true
+    fetchWeights(from, to)
+      .then((rows) => active && setWeights({ key: `${from}|${to}`, rows }))
+      .catch(() => active && setWeights({ key: `${from}|${to}`, rows: [] }))
+    return () => {
+      active = false
+    }
+  }, [from, to])
+  const weightRows = weights?.key === `${from}|${to}` ? weights.rows : []
 
   const allDays = useMemo(() => (input ? aggregateDays(input) : []), [input])
   const byDate = useMemo(() => new Map(allDays.map((d) => [d.date, d])), [allDays])
@@ -292,9 +308,40 @@ export function StatsPage() {
               </section>
             </>
           )}
+
+          {granularity !== 'dia' && weightRows.length > 0 && (
+            <WeightSection days={days.map((d) => d.date)} rows={weightRows} ticks={ticksFor(granularity, days, today)} />
+          )}
         </>
       )}
     </div>
+  )
+}
+
+function WeightSection({ days, rows, ticks }: { days: string[]; rows: WeightLog[]; ticks: string[] }) {
+  const byDate = new Map(rows.map((r) => [r.log_date, r.weight_kg]))
+  const first = rows[0]
+  const last = rows[rows.length - 1]
+  return (
+    <section className="info-card chart-card">
+      <h2>Peso</h2>
+      <WeightChart
+        label="Peso registrado em cada dia, em quilos"
+        values={days.map((d) => byDate.get(d) ?? null)}
+        ticks={ticks}
+        formatAxis={(v) => `${formatNumber(v)}`}
+        initialIndex={days.indexOf(last.log_date)}
+        describe={(i) => {
+          const kg = byDate.get(days[i])
+          return kg === undefined ? `${dayLabel(days[i])}: sem registro` : `${dayLabel(days[i])}: ${formatKg(kg)} kg`
+        }}
+      />
+      {rows.length > 1 && (
+        <p className="muted">
+          {formatKg(first.weight_kg)} kg → {formatKg(last.weight_kg)} kg no período ({formatKgDelta(last.weight_kg - first.weight_kg)} kg).
+        </p>
+      )}
+    </section>
   )
 }
 

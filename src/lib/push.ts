@@ -67,6 +67,8 @@ export async function enablePush(): Promise<'ok' | 'denied'> {
 export type ReminderPrefs = {
   meals_enabled: boolean
   water_enabled: boolean
+  /** Lembrete diário para se pesar, ao fim do silêncio. */
+  weight_enabled: boolean
   /** Antecedência em minutos (0 = na hora). */
   lead_minutes: number
   /** "HH:MM", ou null = automático (31 min depois da última refeição). */
@@ -77,6 +79,7 @@ export type ReminderPrefs = {
 export const DEFAULT_PREFS: ReminderPrefs = {
   meals_enabled: true,
   water_enabled: true,
+  weight_enabled: true,
   lead_minutes: 0,
   quiet_start: null,
   quiet_end: '06:30',
@@ -87,7 +90,7 @@ const hhmm = (t: string | null) => (t ? t.slice(0, 5) : null)
 export async function fetchReminderPrefs(): Promise<ReminderPrefs> {
   const { data, error } = await client
     .from('reminder_settings')
-    .select('meals_enabled, water_enabled, lead_minutes, quiet_start, quiet_end')
+    .select('meals_enabled, water_enabled, weight_enabled, lead_minutes, quiet_start, quiet_end')
     .maybeSingle()
   if (error) throw error
   if (!data) return DEFAULT_PREFS

@@ -10,7 +10,6 @@ import { fetchAiAccess } from '../lib/ai'
 import type { AiAccess } from '../lib/ai'
 import { useProfile } from '../lib/profile'
 import { timezoneOptions } from '../lib/timezones'
-import { parseWeight } from '../lib/workouts'
 
 // Quem entra pelo Google e cria senha continua só com "google" na sessão;
 // por isso a senha vem à parte (hasPassword).
@@ -97,12 +96,11 @@ function ProfileForm({
   initial,
   onSave,
 }: {
-  initial: { display_name: string | null; timezone: string; weight_kg: number | null }
-  onSave: (changes: { display_name: string | null; timezone: string; weight_kg: number | null }) => Promise<{ error: string | null }>
+  initial: { display_name: string | null; timezone: string }
+  onSave: (changes: { display_name: string | null; timezone: string }) => Promise<{ error: string | null }>
 }) {
   const [name, setName] = useState(initial.display_name ?? '')
   const [timezone, setTimezone] = useState(initial.timezone)
-  const [weight, setWeight] = useState(initial.weight_kg === null ? '' : String(initial.weight_kg).replace('.', ','))
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ kind: 'info' | 'error'; text: string } | null>(null)
 
@@ -110,14 +108,9 @@ function ProfileForm({
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    const weight_kg = parseWeight(weight)
-    if (weight_kg === undefined) {
-      setMessage({ kind: 'error', text: 'Peso entre 25 e 400 kg (ou deixe em branco).' })
-      return
-    }
     setSaving(true)
     setMessage(null)
-    const { error } = await onSave({ display_name: name.trim() || null, timezone, weight_kg })
+    const { error } = await onSave({ display_name: name.trim() || null, timezone })
     setMessage(error ? { kind: 'error', text: error } : { kind: 'info', text: 'Dados salvos.' })
     setSaving(false)
   }
@@ -146,11 +139,6 @@ function ProfileForm({
           ))}
         </select>
         <small className="muted">Define quando começa o seu dia e os horários das refeições.</small>
-      </label>
-      <label className="field">
-        <span>Peso (kg), opcional</span>
-        <input type="text" inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Ex.: 82,5" />
-        <small className="muted">Usado só para estimar o gasto do treino e das atividades. Sem ele, o app usa 70 kg.</small>
       </label>
       {message && <p className={`banner banner-${message.kind}`}>{message.text}</p>}
       <button type="submit" className="btn btn-primary" disabled={saving}>

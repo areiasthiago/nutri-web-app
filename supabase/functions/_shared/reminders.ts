@@ -1,4 +1,4 @@
-// Regras dos lembretes (refeição e água), puras e sem dependências: usadas pela
+// Regras dos lembretes (refeição, água e peso), puras e sem dependências: usadas pela
 // Edge Function "push" (Deno) e testadas pelo Vitest (src/lib/reminders.test.ts).
 // Horários em minutos desde a meia-noite, no fuso do usuário.
 
@@ -12,6 +12,8 @@ export const SNOOZE_MIN = 15
 export type ReminderSettings = {
   mealsEnabled: boolean
   waterEnabled: boolean
+  /** Lembrete diário para se pesar, assim que o silêncio acaba. */
+  weightEnabled: boolean
   /** Antecedência do lembrete (0 = na hora). */
   leadMin: number
   /**
@@ -37,6 +39,7 @@ export function quietStartFor(settings: ReminderSettings, meals: ReminderMeal[])
 export const DEFAULT_SETTINGS: ReminderSettings = {
   mealsEnabled: true,
   waterEnabled: true,
+  weightEnabled: true,
   leadMin: 0,
   quietStart: null,
   quietEnd: 6 * 60 + 30,
@@ -54,17 +57,24 @@ export type DueInput = {
   waterSlots: ReminderWaterSlot[]
   /** Água registrada hoje (mL). */
   waterMl: number
+  /** Peso já registrado hoje? */
+  weightLogged?: boolean
+  /** Referência do lembrete de peso (um por dia por pessoa: o id dela). */
+  weightRef?: string
   /** Lembretes já enviados hoje: chave de sentKey(). */
   sent: Set<string>
   /** Lembretes adiados pelo botão da notificação, ainda não reenviados (horário local de hoje). */
-  snoozes?: { id: string; kind: 'meal' | 'water'; refId: string; atMin: number }[]
+  snoozes?: { id: string; kind: ReminderKind; refId: string; atMin: number }[]
 }
+
+export type ReminderKind = 'meal' | 'water' | 'weight'
 
 export type DueReminder =
   | { kind: 'meal'; refId: string; attempt: 1 | 2; mealName: string; timeMin: number; snoozeId?: string }
   | { kind: 'water'; refId: string; attempt: 1; timeMin: number; ml: number; snoozeId?: string }
+  | { kind: 'weight'; refId: string; attempt: 1; timeMin: number; snoozeId?: string }
 
-export const sentKey = (kind: 'meal' | 'water', refId: string, attempt: number) => `${kind}:${refId}:${attempt}`
+export const sentKey = (kind: ReminderKind, refId: string, attempt: number) => `${kind}:${refId}:${attempt}`
 
 /** "HH:MM:SS" ou "HH:MM" → minutos desde a meia-noite. */
 export function toMinutes(time: string): number {
@@ -120,10 +130,21 @@ export function dueReminders(input: DueInput): DueReminder[] {
     }
   }
 
+  // Peso: uma vez por dia, assim que o silêncio acaba, se ainda não foi registrado.
+  if (settings.weightEnabled && input.weightRef && !input.weightLogged) {
+    const at = settings.quietEnd
+    if (dueNow(nowMin, at) && !sent.has(sentKey('weight', input.weightRef, 1))) {
+      out.push({ kind: 'weight', refId: input.weightRef, attempt: 1, timeMin: at })
+    }
+  }
+
   // Adiados pelo botão: voltam na hora marcada, se ainda fizer sentido.
   for (const z of input.snoozes ?? []) {
     if (!dueNow(nowMin, z.atMin) || out.some((d) => d.kind === z.kind && d.refId === z.refId)) continue
-    if (z.kind === 'meal') {
+    if (z.kind === 'weight') {
+      if (input.weightLogged) continue
+      out.push({ kind: 'weight', refId: z.refId, attempt: 1, timeMin: z.atMin, snoozeId: z.id })
+    } else if (z.kind === 'meal') {
       const meal = input.meals.find((m) => m.id === z.refId)
       if (!meal || input.doneMealIds.has(meal.id)) continue
       out.push({ kind: 'meal', refId: meal.id, attempt: 2, mealName: meal.name, timeMin: meal.timeMin, snoozeId: z.id })
@@ -139,20 +160,25 @@ export function dueReminders(input: DueInput): DueReminder[] {
   return out
 }
 
-export type NotificationAction = { action: 'done' | 'snooze'; title: string }
+/** "open": abre o app (o peso precisa ser digitado); os outros vão para a função. */
+export type NotificationAction = { action: 'done' | 'snooze' | 'open'; title: string }
 
 /**
  * Botões da notificação, para o lembrete principal (a refeição, se houver;
- * senão a água): registrar e adiar. Devolve também a que lembrete se referem.
+ * senão o peso; senão a água): registrar e adiar. Devolve também a que
+ * lembrete se referem.
  */
 export function notificationActions(due: DueReminder[]): { target: DueReminder; actions: NotificationAction[] } | null {
-  const target = due.find((d) => d.kind === 'meal') ?? due[0]
+  const target = due.find((d) => d.kind === 'meal') ?? due.find((d) => d.kind === 'weight') ?? due[0]
   if (!target) return null
-  const register = target.kind === 'meal' ? 'Registrar' : `Registrar ${target.ml} mL`
+  const register: NotificationAction =
+    target.kind === 'weight'
+      ? { action: 'open', title: 'Registrar' }
+      : { action: 'done', title: target.kind === 'meal' ? 'Registrar' : `Registrar ${target.ml} mL` }
   return {
     target,
     actions: [
-      { action: 'done', title: register },
+      register,
       { action: 'snooze', title: `Adiar ${SNOOZE_MIN} min` },
     ],
   }
@@ -164,18 +190,29 @@ const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:
  * Uma notificação só para tudo o que venceu junto. Sem dado de saúde (aparece
  * na tela bloqueada): só o nome da refeição e o horário.
  */
-export function composeNotification(due: DueReminder[]): { title: string; body: string; tag: string; section: 'refeicoes' | 'agua' } | null {
+export function composeNotification(
+  due: DueReminder[],
+): { title: string; body: string; tag: string; section: 'refeicoes' | 'agua' | 'peso' } | null {
   if (!due.length) return null
   const meals = due.filter((d): d is Extract<DueReminder, { kind: 'meal' }> => d.kind === 'meal')
   const water = due.some((d) => d.kind === 'water')
+  const weight = due.some((d) => d.kind === 'weight')
   if (meals.length) {
     const m = meals[0]
     const names = meals.map((x) => x.mealName).join(' e ')
     const title = m.attempt === 2 && meals.length === 1 ? `${m.mealName}: ainda sem registro` : `Hora de: ${names}`
-    const body = [`${meals.length === 1 ? `Às ${hhmm(m.timeMin)}. ` : ''}Toque para registrar.`, water ? 'E não esqueça a água.' : '']
+    const body = [
+      `${meals.length === 1 ? `Às ${hhmm(m.timeMin)}. ` : ''}Toque para registrar.`,
+      weight ? 'E registre o peso de hoje.' : '',
+      water ? 'E não esqueça a água.' : '',
+    ]
       .filter(Boolean)
       .join(' ')
     return { title, body, tag: `nutrie-${m.refId}`, section: 'refeicoes' }
+  }
+  if (weight) {
+    const body = ['Toque para registrar o peso de hoje.', water ? 'E não esqueça a água.' : ''].filter(Boolean).join(' ')
+    return { title: 'Hora de se pesar', body, tag: 'nutrie-peso', section: 'peso' }
   }
   return { title: 'Hora da água', body: 'Toque para registrar.', tag: 'nutrie-agua', section: 'agua' }
 }

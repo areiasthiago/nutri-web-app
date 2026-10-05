@@ -8,6 +8,7 @@ import { NotificationPrompt } from '../components/NotificationPrompt'
 import { OffPlanSheet } from '../components/OffPlanSheet'
 import { SnackCard } from '../components/SnackCard'
 import { WaterCard } from '../components/WaterCard'
+import { WeightCard } from '../components/WeightCard'
 import { fetchAiAccess } from '../lib/ai'
 import type { AiAccess } from '../lib/ai'
 import {
@@ -242,6 +243,12 @@ export function TodayPage() {
         </div>
       )}
 
+      {state.status === 'ready' && !state.plan && loaded && (
+        <div id="peso" className="today-section">
+          <WeightCard date={localDateIn(profile.timezone, nowDate)} />
+        </div>
+      )}
+
       {state.status === 'ready' && state.plan && loaded && (
         <PlanView plan={state.plan} now={now} date={localDateIn(profile.timezone, nowDate)} />
       )}
@@ -413,7 +420,7 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
   const fromQuery = new URLSearchParams(location.search).get('secao')
   const scrollTarget =
     (location.state as { scrollTo?: TodaySection } | null)?.scrollTo ??
-    (fromQuery === 'refeicoes' || fromQuery === 'agua' || fromQuery === 'resumo' ? fromQuery : undefined)
+    (fromQuery === 'refeicoes' || fromQuery === 'agua' || fromQuery === 'peso' || fromQuery === 'resumo' ? fromQuery : undefined)
   const navigate = useNavigate()
   useEffect(() => {
     if (!logs || !scrollTarget) return
@@ -505,6 +512,10 @@ function PlanView({ plan, now, date }: { plan: Plan; now: number; date: string }
           <WaterCard targetMl={plan.target_water_ml} slots={plan.hydration_slots} date={date} nowMinutes={now} />
         </div>
       )}
+
+      <div id="peso" className="today-section">
+        <WeightCard date={date} />
+      </div>
 
       <div id="treino" className="today-section">
         <ActivityCard activities={activityRows} access={aiAccess} onAdd={addActivityToDay} onRemove={removeActivity} />

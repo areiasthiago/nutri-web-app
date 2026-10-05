@@ -9,7 +9,7 @@ const client = supabase as SupabaseClient
 
 export const DEFAULT_TIMEZONE = 'America/Sao_Paulo'
 
-export type OnboardingStep = 'boas-vindas' | 'nome' | 'plano' | 'treino' | 'notificacoes' | 'casa' | 'compras' | 'pronto'
+export type OnboardingStep = 'boas-vindas' | 'nome' | 'peso' | 'plano' | 'treino' | 'notificacoes' | 'casa' | 'compras' | 'pronto'
 
 export type Profile = {
   display_name: string | null

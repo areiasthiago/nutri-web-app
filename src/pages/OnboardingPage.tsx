@@ -11,6 +11,8 @@ import { useProfile } from '../lib/profile'
 import type { OnboardingStep } from '../lib/profile'
 import { currentSubscription, enablePush, pushSupport } from '../lib/push'
 import { timezoneOptions } from '../lib/timezones'
+import { localDateIn } from '../lib/plan'
+import { fetchLatestWeights, formatKg, saveWeight } from '../lib/weight'
 import { fetchActiveWorkout, parseWeight } from '../lib/workouts'
 
 // Primeiros passos: apresentação em sequência para conta nova, mostrando tudo o
@@ -18,7 +20,7 @@ import { fetchActiveWorkout, parseWeight } from '../lib/workouts'
 // cadastrar o plano ou a casa e voltar continua de onde parou. Todo passo
 // termina com a mesma linha "← Voltar | Continuar".
 
-const STEPS: OnboardingStep[] = ['boas-vindas', 'nome', 'plano', 'treino', 'notificacoes', 'casa', 'compras', 'pronto']
+const STEPS: OnboardingStep[] = ['boas-vindas', 'nome', 'peso', 'plano', 'treino', 'notificacoes', 'casa', 'compras', 'pronto']
 
 type StepProps = {
   onBack: () => void
@@ -102,6 +104,7 @@ export function OnboardingPage() {
 
       {step === 'boas-vindas' && <Welcome onNext={nav.onNext} />}
       {step === 'nome' && <NameStep {...nav} />}
+      {step === 'peso' && <WeightStep {...nav} />}
       {step === 'plano' && <PlanStep {...nav} onLeave={() => leaveTo('/plano/novo?de=comecar')} />}
       {step === 'treino' && <WorkoutStep {...nav} onLeave={() => leaveTo('/treino?de=comecar')} />}
       {step === 'notificacoes' && <NotificationsStep {...nav} />}
@@ -139,15 +142,12 @@ function NameStep({ onBack, onNext }: StepProps) {
   const { profile, saveProfile } = useProfile()
   const [name, setName] = useState(profile.display_name ?? '')
   const [timezone, setTimezone] = useState(profile.timezone)
-  const [weight, setWeight] = useState(profile.weight_kg === null ? '' : String(profile.weight_kg).replace('.', ','))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function save() {
-    const weight_kg = parseWeight(weight)
-    if (weight_kg === undefined) return setError('Peso entre 25 e 400 kg (ou deixe em branco).')
     setBusy(true)
-    const r = await saveProfile({ display_name: name.trim() || null, timezone, weight_kg })
+    const r = await saveProfile({ display_name: name.trim() || null, timezone })
     setBusy(false)
     if (r.error) setError(r.error)
     else onNext()
@@ -156,7 +156,7 @@ function NameStep({ onBack, onNext }: StepProps) {
   return (
     <Step>
       <h1>Sobre você</h1>
-      <p className="muted">Como quer ser chamado na tela Hoje, seu fuso e, se quiser, seu peso.</p>
+      <p className="muted">Como quer ser chamado na tela Hoje e o seu fuso.</p>
       <label className="field">
         <span>Nome ou apelido</span>
         <input type="text" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} autoComplete="nickname" placeholder="Ex.: Thiago" />
@@ -172,11 +172,79 @@ function NameStep({ onBack, onNext }: StepProps) {
         </select>
         <small className="muted">Os horários das refeições e dos lembretes seguem este fuso.</small>
       </label>
+      {error && <p className="banner banner-error">{error}</p>}
+      <StepNav onBack={onBack} onNext={save} busy={busy} />
+    </Step>
+  )
+}
+
+function WeightStep({ onBack, onNext }: StepProps) {
+  const { profile, saveProfile } = useProfile()
+  const today = localDateIn(profile.timezone)
+  const [weight, setWeight] = useState('')
+  const [last, setLast] = useState<{ date: string; kg: number } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    fetchLatestWeights(today, 1)
+      .then(([w]) => {
+        if (!active || !w) return
+        // Já registrou hoje: mostra para trocar. Senão, o último fica só como dica.
+        if (w.log_date === today) setWeight(formatKg(w.weight_kg))
+        else setLast({ date: w.log_date, kg: w.weight_kg })
+      })
+      .catch(() => {})
+    return () => {
+      active = false
+    }
+  }, [today])
+
+  async function save() {
+    const kg = parseWeight(weight)
+    if (kg === undefined) return setError('Peso entre 25 e 400 kg (ou deixe em branco).')
+    // Em branco: segue sem registrar (dá para registrar depois na tela Hoje).
+    if (kg === null) return onNext()
+    setError(null)
+    setBusy(true)
+    try {
+      await saveWeight(today, kg)
+      await saveProfile({ weight_kg: kg })
+      onNext()
+    } catch {
+      setError('Não foi possível salvar agora. Confira a internet e tente de novo.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Step>
+      <h1>Seu peso</h1>
+      <p>
+        Registre o peso de hoje para acompanhar a evolução em Estatísticas. Ele também entra na estimativa do gasto do
+        treino e das atividades.
+      </p>
       <label className="field">
         <span>Peso (kg), opcional</span>
-        <input type="text" inputMode="decimal" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="Ex.: 82,5" />
-        <small className="muted">Só para estimar o gasto do treino e das atividades. Dá para preencher depois em Minha conta.</small>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={weight}
+          onChange={(e) => setWeight(e.target.value)}
+          placeholder={last ? formatKg(last.kg) : 'Ex.: 82,5'}
+        />
+        {last && (
+          <small className="muted">
+            Último registro: {formatKg(last.kg)} kg em {last.date.slice(8, 10)}/{last.date.slice(5, 7)}.
+          </small>
+        )}
       </label>
+      <p className="muted">
+        No dia a dia, o card "Seu peso hoje" fica na tela Hoje, e um lembrete chega de manhã, quando o silêncio das
+        notificações acaba. Prefere não registrar? É só continuar.
+      </p>
       {error && <p className="banner banner-error">{error}</p>}
       <StepNav onBack={onBack} onNext={save} busy={busy} />
     </Step>
@@ -431,6 +499,9 @@ function DoneStep({ onBack, onNext }: StepProps) {
         </li>
         <li>
           <strong>Comeu fora de hora?</strong> Descreva na tela Hoje e as calorias entram no dia.
+        </li>
+        <li>
+          <strong>Registre o peso</strong> de manhã, no card "Seu peso hoje" ou pelo lembrete.
         </li>
         <li>
           <strong>Treinou?</strong> Registre na tela Hoje e o gasto estimado sai do balanço do dia.

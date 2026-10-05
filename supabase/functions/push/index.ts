@@ -5,7 +5,7 @@
 //   (pessoa logada). Na primeira vez, gera o par de chaves e guarda no Vault.
 // - "dispatch": chamada pelo agendamento do banco a cada minuto (cabeçalho
 //   x-cron-secret). Para cada pessoa com aparelho inscrito, escolhe os lembretes
-//   de refeição e água que venceram (regras em ../_shared/reminders.ts), envia
+//   de refeição, água e peso que venceram (regras em ../_shared/reminders.ts), envia
 //   uma notificação só (com os botões "Registrar" e "Adiar 15 min") e apaga as
 //   inscrições que não existem mais.
 // - "notification-action": toque num botão da notificação (vem do service
@@ -25,7 +25,7 @@ import {
   sentKey,
   toMinutes,
 } from "../_shared/reminders.ts"
-import type { ReminderSettings } from "../_shared/reminders.ts"
+import type { ReminderKind, ReminderSettings } from "../_shared/reminders.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -109,6 +109,7 @@ function localNow(timeZone: string, now = new Date()) {
 type SettingsRow = {
   meals_enabled: boolean
   water_enabled: boolean
+  weight_enabled: boolean
   lead_minutes: number
   quiet_start: string | null
   quiet_end: string
@@ -118,7 +119,7 @@ type SettingsRow = {
 async function remindOwner(server: () => Promise<webpush.ApplicationServer>, ownerId: string): Promise<number> {
   const [profile, settingsRow, plan] = await Promise.all([
     admin.from("profiles").select("timezone").eq("id", ownerId).maybeSingle(),
-    admin.from("reminder_settings").select("meals_enabled, water_enabled, lead_minutes, quiet_start, quiet_end").eq("owner_id", ownerId).maybeSingle(),
+    admin.from("reminder_settings").select("meals_enabled, water_enabled, weight_enabled, lead_minutes, quiet_start, quiet_end").eq("owner_id", ownerId).maybeSingle(),
     admin
       .from("plans")
       .select("id, meals (id, name, time), hydration_slots (id, time, ml)")
@@ -128,7 +129,7 @@ async function remindOwner(server: () => Promise<webpush.ApplicationServer>, own
       .is("household_member_id", null)
       .maybeSingle(),
   ])
-  if (!plan.data) return 0
+  // Sem plano ainda: só o lembrete de peso pode sair.
   const tz = (profile.data?.timezone as string | undefined) ?? "America/Sao_Paulo"
   const { date, minutes } = localNow(tz)
 
@@ -137,19 +138,21 @@ async function remindOwner(server: () => Promise<webpush.ApplicationServer>, own
     ? {
         mealsEnabled: row.meals_enabled,
         waterEnabled: row.water_enabled,
+        weightEnabled: row.weight_enabled,
         leadMin: row.lead_minutes,
         quietStart: row.quiet_start ? toMinutes(row.quiet_start) : null,
         quietEnd: toMinutes(row.quiet_end),
       }
     : DEFAULT_SETTINGS
 
-  const p = plan.data as {
+  const p = (plan.data ?? { meals: [], hydration_slots: [] }) as {
     meals: { id: string; name: string; time: string }[]
     hydration_slots: { id: string; time: string; ml: number }[]
   }
-  const [logs, water, sends, snoozes] = await Promise.all([
+  const [logs, water, weight, sends, snoozes] = await Promise.all([
     admin.from("meal_logs").select("meal_id").eq("owner_id", ownerId).eq("log_date", date),
     admin.from("water_logs").select("ml").eq("owner_id", ownerId).eq("log_date", date),
+    admin.from("weight_logs").select("id").eq("owner_id", ownerId).eq("log_date", date).limit(1),
     admin.from("reminder_sends").select("kind, ref_id, attempt").eq("owner_id", ownerId).eq("local_date", date),
     admin.from("reminder_snoozes").select("id, kind, ref_id, send_at").eq("owner_id", ownerId).eq("local_date", date).is("sent_at", null),
   ])
@@ -161,8 +164,10 @@ async function remindOwner(server: () => Promise<webpush.ApplicationServer>, own
     doneMealIds: new Set((logs.data ?? []).map((l: { meal_id: string }) => l.meal_id)),
     waterSlots: p.hydration_slots.map((h) => ({ id: h.id, timeMin: toMinutes(h.time), ml: Number(h.ml) })),
     waterMl: (water.data ?? []).reduce((s: number, w: { ml: number }) => s + Number(w.ml), 0),
-    sent: new Set((sends.data ?? []).map((x: { kind: "meal" | "water"; ref_id: string; attempt: number }) => sentKey(x.kind, x.ref_id, x.attempt))),
-    snoozes: (snoozes.data ?? []).map((z: { id: string; kind: "meal" | "water"; ref_id: string; send_at: string }) => ({
+    weightLogged: (weight.data ?? []).length > 0,
+    weightRef: ownerId,
+    sent: new Set((sends.data ?? []).map((x: { kind: ReminderKind; ref_id: string; attempt: number }) => sentKey(x.kind, x.ref_id, x.attempt))),
+    snoozes: (snoozes.data ?? []).map((z: { id: string; kind: ReminderKind; ref_id: string; send_at: string }) => ({
       id: z.id,
       kind: z.kind,
       refId: z.ref_id,
@@ -183,7 +188,7 @@ async function remindOwner(server: () => Promise<webpush.ApplicationServer>, own
       )
       .select("kind, ref_id, attempt")
     if (error) throw error
-    for (const x of (claimed ?? []) as { kind: "meal" | "water"; ref_id: string; attempt: number }[]) {
+    for (const x of (claimed ?? []) as { kind: ReminderKind; ref_id: string; attempt: number }[]) {
       claimedKeys.add(sentKey(x.kind, x.ref_id, x.attempt))
     }
   }
@@ -256,7 +261,7 @@ const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, "0")}:
 type ActionRow = {
   owner_id: string
   local_date: string
-  kind: "meal" | "water"
+  kind: ReminderKind
   ref_id: string
   ml: number | null
   used_at: string | null
@@ -307,6 +312,9 @@ async function notificationAction(token: string, choice: "done" | "snooze"): Pro
     const tz = (profile?.timezone as string | undefined) ?? "America/Sao_Paulo"
     return `Adiado para ${hhmm(localNow(tz, sendAt).minutes)}.`
   }
+
+  // O peso precisa ser digitado: o botão "Registrar" abre o app (não chega aqui).
+  if (a.kind === "weight") return "Abra o app para registrar o peso."
 
   if (a.kind === "meal") {
     const { data: meal } = await admin

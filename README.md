@@ -148,6 +148,11 @@ pode ser rodado de novo: desativa o plano anterior e cria um novo ativo.
 - Botões na notificação (Android): "Registrar" (refeição conforme o plano, ou o volume de água do
   horário) e "Adiar 15 min" (cancela a repetição automática). Cada notificação leva um código de uso
   único (`notification_actions`) que a função confere; adiados em `reminder_snoozes`.
+- Peso: um registro por dia (`weight_logs`), no card "Seu peso hoje" da tela Hoje e no passo "Seu
+  peso" dos primeiros passos; histórico em Estatísticas (semana e mês). O peso do perfil
+  (`profiles.weight_kg`, usado no gasto das atividades) segue o registro mais recente, por gatilho.
+  Lembrete diário ao fim do silêncio (06:30 por padrão), só se o peso do dia ainda não foi
+  registrado; o botão "Registrar" abre o app (o peso é digitado). Desliga em Minha conta.
 
 - Minha casa (menu ☰): pessoas da casa (apelido, adulto ou criança com faixa de idade, fator de
   porção e refeições feitas em casa por dia da semana), com plano próprio opcional para adultos (as

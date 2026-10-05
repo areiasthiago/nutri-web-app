@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 // Navegação rápida das telas logadas, fixa embaixo: Refeições, Água e Resumo
 // são seções da tela Hoje (rola até elas); Estatísticas é uma tela própria.
 
-export type TodaySection = 'refeicoes' | 'agua' | 'resumo'
+export type TodaySection = 'refeicoes' | 'agua' | 'peso' | 'resumo'
 
 /** Rola a tela Hoje até a seção (o cabeçalho fixo é compensado por scroll-margin-top no CSS). */
 export function scrollToSection(id: TodaySection) {

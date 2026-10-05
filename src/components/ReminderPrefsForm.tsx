@@ -94,6 +94,16 @@ export function ReminderPrefsForm() {
         </span>
       </label>
 
+      <label className="check-row">
+        <input type="checkbox" checked={prefs.weight_enabled} onChange={(e) => update({ weight_enabled: e.target.checked })} />
+        <span>
+          Peso
+          <small className="muted">
+            Todo dia às {prefs.quiet_end || '06:30'}, quando o silêncio acaba. Pula se o peso do dia já estiver registrado.
+          </small>
+        </span>
+      </label>
+
       <label className="field">
         <span>Quando avisar</span>
         <select value={prefs.lead_minutes} onChange={(e) => update({ lead_minutes: Number(e.target.value) })}>

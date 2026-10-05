@@ -2652,6 +2652,38 @@ body.with-bottom-nav .editor-actions {
   color: #fff;
 }
 
+/* Seu peso hoje */
+
+.weight-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.weight-today {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+
+.weight-today strong {
+  font-size: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+.weight-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.weight-tip {
+  margin: 0;
+  font-size: 13px;
+}
+
 /* Treinou hoje? */
 
 .activity-card .segmented {

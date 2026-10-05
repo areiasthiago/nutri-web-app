@@ -147,3 +147,51 @@ describe('botões da notificação e lembrete adiado', () => {
     expect(dueReminders(input({ nowMin: at, meals: [], snoozes: w, waterMl: 0 }))).toMatchObject([{ kind: 'water', snoozeId: 'z2' }])
   })
 })
+
+describe('lembrete de peso', () => {
+  const FIM = toMinutes('06:30')
+  const peso = (over: Partial<DueInput>) => input({ weightRef: 'eu', weightLogged: false, ...over })
+
+  it('sai assim que o silêncio acaba (06:30), uma vez por dia', () => {
+    expect(dueReminders(peso({ nowMin: FIM }))).toEqual([{ kind: 'weight', refId: 'eu', attempt: 1, timeMin: FIM }])
+    expect(dueReminders(peso({ nowMin: FIM - 1 }))).toEqual([])
+    expect(dueReminders(peso({ nowMin: FIM + CATCH_UP_MIN - 1 }))).toHaveLength(1)
+    expect(dueReminders(peso({ nowMin: FIM + CATCH_UP_MIN }))).toEqual([])
+    expect(dueReminders(peso({ nowMin: FIM, sent: new Set([sentKey('weight', 'eu', 1)]) }))).toEqual([])
+  })
+
+  it('segue o fim do silêncio escolhido', () => {
+    const settings = { ...DEFAULT_SETTINGS, quietEnd: toMinutes('07:15') }
+    expect(dueReminders(peso({ nowMin: toMinutes('07:15'), settings }))).toHaveLength(1)
+  })
+
+  it('não lembra se já registrou o peso hoje ou se desligou', () => {
+    expect(dueReminders(peso({ nowMin: FIM, weightLogged: true }))).toEqual([])
+    expect(dueReminders(peso({ nowMin: FIM, settings: { ...DEFAULT_SETTINGS, weightEnabled: false } }))).toEqual([])
+  })
+
+  it('adiado volta na hora marcada, se ainda não registrou', () => {
+    const snoozes = [{ id: 'z', kind: 'weight' as const, refId: 'eu', atMin: FIM + 15 }]
+    expect(dueReminders(peso({ nowMin: FIM + 15, snoozes, sent: new Set([sentKey('weight', 'eu', 1)]) }))).toMatchObject([
+      { kind: 'weight', snoozeId: 'z' },
+    ])
+    expect(dueReminders(peso({ nowMin: FIM + 15, snoozes, weightLogged: true }))).toEqual([])
+  })
+
+  it('notificação: "Hora de se pesar", botão Registrar abre o app', () => {
+    const due = dueReminders(peso({ nowMin: FIM }))
+    expect(composeNotification(due)).toMatchObject({ title: 'Hora de se pesar', section: 'peso' })
+    expect(notificationActions(due)?.actions).toEqual([
+      { action: 'open', title: 'Registrar' },
+      { action: 'snooze', title: 'Adiar 15 min' },
+    ])
+  })
+
+  it('junto com uma refeição: uma notificação só, da refeição, lembrando o peso', () => {
+    const cafe = { id: 'cafe', name: 'Café da manhã', timeMin: FIM }
+    const due = dueReminders(peso({ nowMin: FIM, meals: [cafe, ALMOCO] }))
+    expect(due.map((d) => d.kind).sort()).toEqual(['meal', 'weight'])
+    expect(composeNotification(due)?.body).toContain('peso de hoje')
+    expect(notificationActions(due)?.target.kind).toBe('meal')
+  })
+})

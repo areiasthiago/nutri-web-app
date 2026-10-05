@@ -245,7 +245,7 @@ export function ActivityCard({ activities, access, onAdd, onRemove }: Props) {
 
           <p className="muted activity-foot">
             Gasto estimado {useAi ? 'pela IA' : 'pela tabela de gasto por atividade'}
-            {weight ? `, com ${String(weight).replace('.', ',')} kg` : ', com 70 kg (informe seu peso em Minha conta)'}.
+            {weight ? `, com ${String(weight).replace('.', ',')} kg` : ', com 70 kg (registre seu peso em "Seu peso hoje")'}.
             Valores aproximados.
           </p>
         </>

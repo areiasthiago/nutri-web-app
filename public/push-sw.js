@@ -58,7 +58,8 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const data = event.notification.data || {}
 
-  if (event.action && data.actionToken && data.actionUrl) {
+  // "open" (ex.: Registrar o peso) só abre o app; os outros botões vão para a função.
+  if (event.action && event.action !== 'open' && data.actionToken && data.actionUrl) {
     event.waitUntil(handleAction(event.notification, event.action))
     return
   }
