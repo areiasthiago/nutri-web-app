@@ -203,6 +203,10 @@ A Fase 1 do briefing está completa. Fase 2: uso offline com sincronização qua
 
 ## IA (só VIP)
 
+- Quem não é VIP vê, ao lado de cada caminho sem IA, uma prévia trancada do que a IA faria ali
+  (`AiTeaser`: só texto, sem campo nem botão; fecha no ✕ e não volta naquele aparelho) e o card
+  "Recursos com IA" em Minha conta. A função `ai-extract-plan` recusa quem não é VIP de qualquer jeito.
+
 - Quem é VIP: tabela `ai_access` (o app só lê). Para liberar alguém, no SQL Editor:
   `insert into ai_access (user_id, monthly_limit_usd) select id, 1.00 from auth.users where email = '...';`
 - Segredos em **Edge Functions → Secrets**: `ANTHROPIC_API_KEY` (obrigatório), `AI_MODEL`

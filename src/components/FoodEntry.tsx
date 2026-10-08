@@ -7,6 +7,7 @@ import type { CustomMeal } from '../lib/customMeals'
 import type { OffPlanFood } from '../lib/mealLogs'
 import { formatNumber } from '../lib/plan'
 import { parseNumber } from '../lib/planDraft'
+import { AiTeaser } from './AiTeaser'
 import { AiTerms } from './AiTerms'
 
 /** Em que passo está: digitando/buscando, escolheu um já registrado, ou conferindo valores. */
@@ -203,6 +204,13 @@ export function FoodEntry({
           <button type="button" className="btn btn-outline-neutral" disabled={busy} onClick={handleManual}>
             {manualLabel}
           </button>
+          {access && !access.vip && (
+            <AiTeaser
+              id="food-entry"
+              title="Com IA, é só descrever: as calorias e os macros saem sozinhos"
+              example="um pão francês com manteiga e um café com leite"
+            />
+          )}
         </>
       )}
 

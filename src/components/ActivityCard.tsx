@@ -4,6 +4,7 @@ import { estimateActivityWithAi } from '../lib/ai'
 import type { AiAccess } from '../lib/ai'
 import { formatNumber } from '../lib/plan'
 import { useProfile } from '../lib/profile'
+import { AiTeaser } from './AiTeaser'
 import { ACTIVITIES, STRENGTH_MET, fetchActiveWorkout, metKcal } from '../lib/workouts'
 import type { ActivityLog, WorkoutPlan } from '../lib/workouts'
 
@@ -248,6 +249,10 @@ export function ActivityCard({ activities, access, onAdd, onRemove }: Props) {
             {weight ? `, com ${String(weight).replace('.', ',')} kg` : ', com 70 kg (registre seu peso em "Seu peso hoje")'}.
             Valores aproximados.
           </p>
+
+          {kind === 'outra' && access && !access.vip && (
+            <AiTeaser id="activity" title="Com IA, você descreve do seu jeito e ela estima o gasto" example="caminhei 40 min no parque, ritmo leve" />
+          )}
         </>
       )}
     </section>

@@ -67,6 +67,25 @@ export function AccountPage() {
         </p>
       </section>
 
+      {aiAccess && !aiAccess.vip && (
+        <section className="info-card form-card ai-features">
+          <h2>Recursos com IA</h2>
+          <p className="muted">
+            Tudo no app funciona sem IA. Para contas VIP, a IA ainda:
+          </p>
+          <ul>
+            <li>calcula as calorias de qualquer coisa que você descrever ("um pão francês com manteiga");</li>
+            <li>lê o PDF do plano e do treino em qualquer formato, até escaneado;</li>
+            <li>edita o plano pelo que você pedir ("trocar o jantar de terça por omelete");</li>
+            <li>estima o gasto de qualquer atividade descrita em texto;</li>
+            <li>separa cada prato em ingredientes de mercado na lista de compras.</li>
+          </ul>
+          <p className="ai-teaser-foot">
+            <span className="ai-teaser-badge">Recurso VIP</span> Fale com quem te convidou.
+          </p>
+        </section>
+      )}
+
       {aiAccess?.vip && (
         <section className="info-card form-card">
           <h2>Inteligência artificial</h2>

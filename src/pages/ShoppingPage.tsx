@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { AiTeaser } from '../components/AiTeaser'
+import { fetchAiAccess } from '../lib/ai'
 import { localDateIn } from '../lib/plan'
 import { useProfile } from '../lib/profile'
 import { SHOPPING_DAYS, buildShoppingList, defaultYield, foodKey, formatAmount, itemKey, ruleIngredients, weekStartFor } from '../lib/shopping'
@@ -44,6 +46,16 @@ export function ShoppingPage() {
   const [error, setError] = useState<string | null>(null)
   // IA (só VIP): separando ingredientes dos itens que ainda não têm.
   const [aiState, setAiState] = useState<'idle' | 'running' | 'failed'>('idle')
+  const [vip, setVip] = useState<boolean | null>(null)
+  useEffect(() => {
+    let active = true
+    fetchAiAccess()
+      .then((a) => active && setVip(a.vip))
+      .catch(() => active && setVip(null))
+    return () => {
+      active = false
+    }
+  }, [])
   // Seção do mercado escolhida pela pessoa (sobrepõe a deduzida pelo nome).
   const [sections, setSections] = useState<Map<string, SectionKey>>(new Map())
 
@@ -302,6 +314,12 @@ export function ShoppingPage() {
           <button type="button" className="btn btn-outline-neutral" onClick={restart} disabled={done === 0}>
             Desmarcar tudo
           </button>
+          {vip === false && (
+            <AiTeaser
+              id="shopping"
+              title='Com IA, cada prato vira os ingredientes de mercado, na quantidade certa (ex.: "Omelete de 2 ovos" → 2 ovos)'
+            />
+          )}
         </>
       )}
     </div>

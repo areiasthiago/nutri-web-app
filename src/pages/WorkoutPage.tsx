@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { readWorkoutWithAi } from '../lib/ai'
 import { extractPdfPages } from '../lib/pdfText'
+import { fetchAiAccess } from '../lib/ai'
 import { canUseAi } from '../lib/shoppingData'
+import { AiTeaser } from '../components/AiTeaser'
 import {
   draftFromWorkout,
   emptyExercise,
@@ -26,6 +28,17 @@ export function WorkoutPage() {
   const [step, setStep] = useState<Step>({ kind: 'view' })
   const [error, setError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+  const [vip, setVip] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    let active = true
+    fetchAiAccess()
+      .then((a) => active && setVip(a.vip))
+      .catch(() => active && setVip(null))
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     let active = true
@@ -160,6 +173,9 @@ export function WorkoutPage() {
           <button type="button" className="btn btn-outline-neutral" onClick={() => setStep({ kind: 'review', draft: emptyWorkout(), note: null })}>
             Montar à mão
           </button>
+          {vip === false && (
+            <AiTeaser id="workout-pdf" title="Com IA, o PDF do treino é lido em qualquer formato, até PDF escaneado" />
+          )}
         </section>
       )}
     </div>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AiQuotaBar } from '../components/AiQuota'
+import { AiTeaser } from '../components/AiTeaser'
 import { AiTerms } from '../components/AiTerms'
 import { PlanEditor } from '../components/PlanEditor'
 import {
@@ -281,7 +282,7 @@ export function NewPlanPage() {
             <p className="muted">Você atingiu o limite de uso da IA deste mês; ele volta no começo do mês.</p>
           )}
           {access && !access.vip && (
-            <p className="muted">A leitura com IA é exclusiva para usuários VIP.</p>
+            <AiTeaser id="plan-pdf-offer" title="Com IA, PDFs que o celular não entende são lidos em qualquer formato" />
           )}
 
           {step.local && step.local.quality === 'weak' && (
@@ -351,6 +352,9 @@ export function NewPlanPage() {
               Escolher PDF
             </label>
             {access?.vip && <AiQuotaBar access={access} />}
+            {access && !access.vip && (
+              <AiTeaser id="plan-pdf" title="Com IA, o PDF do nutricionista é lido em qualquer formato, até PDF escaneado" />
+            )}
           </section>
 
           <section className="info-card form-card">

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { AiQuotaBar } from '../components/AiQuota'
+import { AiTeaser } from '../components/AiTeaser'
 import { AiTerms } from '../components/AiTerms'
 import { PlanEditor } from '../components/PlanEditor'
 import {
@@ -232,34 +233,43 @@ export function MyPlanPage() {
             </ul>
           </section>
 
-          <section className="info-card form-card">
-            <h2>Editar com IA</h2>
-            {!access && <p className="muted">Carregando…</p>}
-            {access && !access.vip && <p className="muted">A edição com IA é exclusiva para usuários VIP.</p>}
-            {access?.vip && !access.consented && <AiTerms onAccept={handleAccept} />}
-            {access?.vip && access.consented && (
-              <form className="ai-edit-form" onSubmit={handleAiEdit}>
-                <label className="field">
-                  <span>O que você quer mudar?</span>
-                  <textarea
-                    rows={3}
-                    maxLength={MAX_INSTRUCTION_CHARS}
-                    value={instruction}
-                    onChange={(e) => setInstruction(e.target.value)}
-                    placeholder="Ex.: Atrase o lanche da tarde e a ceia em meia hora. Jantar, em uma hora."
-                  />
-                </label>
-                <small className="muted">
-                  A IA só aplica o que você pedir, e você revisa antes de salvar. Ajustes de dieta (calorias,
-                  quantidades) são com o seu nutricionista.
-                </small>
-                <button type="submit" className="btn btn-primary" disabled={!instruction.trim() || aiRemaining <= 0}>
-                  Aplicar com IA (usa cerca de {quotaPercent(AI_EDIT_ESTIMATE_USD, access.monthLimitUsd)}% da sua cota)
-                </button>
-                <AiQuotaBar access={access} />
-              </form>
-            )}
-          </section>
+          {access && !access.vip && (
+            <AiTeaser
+              id="plan-edit"
+              title="Com IA, você pede a mudança e ela aplica no plano para você revisar"
+              example="trocar o jantar de terça por omelete de 2 ovos"
+            />
+          )}
+
+          {access?.vip !== false && (
+            <section className="info-card form-card">
+              <h2>Editar com IA</h2>
+              {!access && <p className="muted">Carregando…</p>}
+              {access?.vip && !access.consented && <AiTerms onAccept={handleAccept} />}
+              {access?.vip && access.consented && (
+                <form className="ai-edit-form" onSubmit={handleAiEdit}>
+                  <label className="field">
+                    <span>O que você quer mudar?</span>
+                    <textarea
+                      rows={3}
+                      maxLength={MAX_INSTRUCTION_CHARS}
+                      value={instruction}
+                      onChange={(e) => setInstruction(e.target.value)}
+                      placeholder="Ex.: Atrase o lanche da tarde e a ceia em meia hora. Jantar, em uma hora."
+                    />
+                  </label>
+                  <small className="muted">
+                    A IA só aplica o que você pedir, e você revisa antes de salvar. Ajustes de dieta (calorias,
+                    quantidades) são com o seu nutricionista.
+                  </small>
+                  <button type="submit" className="btn btn-primary" disabled={!instruction.trim() || aiRemaining <= 0}>
+                    Aplicar com IA (usa cerca de {quotaPercent(AI_EDIT_ESTIMATE_USD, access.monthLimitUsd)}% da sua cota)
+                  </button>
+                  <AiQuotaBar access={access} />
+                </form>
+              )}
+            </section>
+          )}
 
           <section className="info-card form-card">
             <h2>Editar à mão</h2>
