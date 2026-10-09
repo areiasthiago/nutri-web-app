@@ -140,6 +140,7 @@ export function MyPlanPage() {
         {error && <p className="banner banner-error">{error}</p>}
         <PlanEditor
           initial={step.draft}
+          by={step.by}
           saving={saving}
           onSave={(draft) => handleSave(draft, step.extractionId)}
           onCancel={() => {

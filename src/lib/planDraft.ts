@@ -35,7 +35,7 @@ export type PlanDraft = {
   notes: string
   meals: DraftMeal[]
   hydration_slots: DraftSlot[]
-  /** Pontos que a IA marcou para conferir (não são salvos). */
+  /** Pontos para conferir, marcados pela IA ou pela leitura no celular (não são salvos). */
   warnings: string[]
   /** O que uma edição com IA mudou (não é salvo). */
   changes: string[]

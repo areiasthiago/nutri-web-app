@@ -9,6 +9,8 @@ type Props = {
   saving: boolean
   onSave: (draft: PlanDraft) => void
   onCancel: () => void
+  /** Quem preencheu o rascunho: só a IA "pede para conferir"; a leitura no celular também deixa avisos. */
+  by: 'ai' | 'device' | 'manual'
 }
 
 function Field({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
@@ -31,7 +33,7 @@ function RemoveButton({ label, onClick }: { label: string; onClick: () => void }
 }
 
 /** Tela de revisão/edição do plano: tudo editável, nada salvo até "Salvar plano". */
-export function PlanEditor({ initial, saving, onSave, onCancel }: Props) {
+export function PlanEditor({ initial, saving, onSave, onCancel, by }: Props) {
   const [draft, setDraft] = useState(initial)
   const [problems, setProblems] = useState<string[]>([])
 
@@ -87,7 +89,7 @@ export function PlanEditor({ initial, saving, onSave, onCancel }: Props) {
 
       {draft.warnings.length > 0 && (
         <div className="banner banner-attention">
-          <strong>A IA pediu para você conferir:</strong>
+          <strong>{by === 'ai' ? 'A IA pediu para você conferir:' : 'Confira estes pontos:'}</strong>
           <ul>
             {draft.warnings.map((w) => (
               <li key={w}>{w}</li>
