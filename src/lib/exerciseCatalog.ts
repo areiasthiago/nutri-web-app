@@ -4,9 +4,10 @@
 //
 // Ilustrações: public/exercicios/<key>.webp, WebP animado de 360 px. Quase
 // todas vêm dos GIFs do Gif do Treino (gifdotreino.com, "todos os direitos
-// reservados"; uso só da família, decisão do Thiago em 09/11/2026). Prancha,
-// prancha lateral e abdominal, que o site não tem, são as duas fotos do
-// free-exercise-db (Unlicense) alternando. Sem arquivo, fica só a dica.
+// reservados"; uso só da família, decisão do Thiago em 09/11/2026); a da
+// prancha, no mesmo estilo, ele trouxe à parte. Prancha lateral e abdominal,
+// que o site não tem, são as duas fotos do free-exercise-db (Unlicense)
+// alternando. Sem arquivo, fica só a dica.
 // Atividades aeróbicas têm o MET, usado no gasto da sessão sem IA.
 
 export type CatalogEntry = {
