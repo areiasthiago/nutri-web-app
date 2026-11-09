@@ -5,7 +5,7 @@ import type { AiAccess } from '../lib/ai'
 import { formatNumber } from '../lib/plan'
 import { useProfile } from '../lib/profile'
 import { AiTeaser } from './AiTeaser'
-import { loadSession, routineActivity } from '../lib/workoutSession'
+import { loadSession, routineActivity, START_STATE } from '../lib/workoutSession'
 import { ACTIVITIES, fetchActiveWorkout, metKcal } from '../lib/workouts'
 import type { ActivityLog, WorkoutPlan } from '../lib/workouts'
 
@@ -187,7 +187,7 @@ export function ActivityCard({ activities, access, onAdd, onRemove }: Props) {
           )}
 
           {kind === 'treino' && routine && !session && (
-            <Link to={`/treino/fazer/${routine.id}`} className="btn btn-primary btn-link-as-button activity-start">
+            <Link to={`/treino/fazer/${routine.id}`} state={START_STATE} className="btn btn-primary btn-link-as-button activity-start">
               Começar o treino agora
             </Link>
           )}

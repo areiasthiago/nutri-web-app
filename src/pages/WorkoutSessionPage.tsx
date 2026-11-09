@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { fetchAiAccess } from '../lib/ai'
 import { exerciseImages, findExercise } from '../lib/exerciseCatalog'
 import { formatNumber, localDateIn } from '../lib/plan'
@@ -17,6 +17,7 @@ import {
   parseSets,
   restSeconds,
   routineActivity,
+  START_STATE,
   storeSession,
 } from '../lib/workoutSession'
 import type { DoneSet, NewActivity, Session, SetLog, SetsPlan } from '../lib/workoutSession'
@@ -28,6 +29,8 @@ import type { Exercise, Routine } from '../lib/workouts'
 // app em segundo plano) notificação. Séries por tempo (prancha, esteira) têm
 // o próprio cronômetro. "Terminar" registra a atividade do dia com a duração
 // real. A sessão fica guardada no aparelho até terminar ou descartar.
+// Sem sessão, a tela é a prévia da rotina (todos os exercícios abertos);
+// vindo do botão "Começar" (state.start), o treino já começa.
 
 type Timer = {
   kind: 'rest' | 'work'
@@ -43,11 +46,18 @@ type Finish = { kind: 'saving' } | { kind: 'done'; entry: NewActivity; sets: num
 export function WorkoutSessionPage() {
   const { routineId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { profile } = useProfile()
   const [routine, setRoutine] = useState<Routine | null | undefined>(undefined)
   const [session, setSession] = useState<Session | null>(() => {
     const s = loadSession()
-    return s && s.routineId === routineId ? s : null
+    if (s) return s.routineId === routineId ? s : null
+    if (!(location.state as typeof START_STATE | null)?.start) return null
+    // O toque em "Começar" ainda vale como gesto para liberar o som.
+    unlockAudio()
+    const started: Session = { routineId: routineId!, startedAt: Date.now(), done: {} }
+    storeSession(started)
+    return started
   })
   const [otherSession] = useState(() => {
     const s = loadSession()
@@ -110,6 +120,11 @@ export function WorkoutSessionPage() {
       release()
     }
   }, [running])
+
+  // Já começou: tira o "começar" do histórico, para voltar ou recarregar não abrir outro treino.
+  useEffect(() => {
+    if ((location.state as typeof START_STATE | null)?.start) navigate(location.pathname, { replace: true, state: null })
+  }, [location, navigate])
 
   useEffect(() => {
     if (!restOver) return
@@ -313,6 +328,8 @@ export function WorkoutSessionPage() {
       {error && <p className="banner banner-error">{error}</p>}
       {routine === undefined && !error && <p className="muted">Carregando…</p>}
 
+      {routine && !session && <p className="muted">Prévia: nada é marcado até você tocar em “Começar treino”.</p>}
+
       {otherSession && !session && (
         <p className="banner banner-attention">
           Você tem outro treino em andamento.{' '}
@@ -324,7 +341,7 @@ export function WorkoutSessionPage() {
         <ExerciseCard
           key={e.id}
           exercise={e}
-          open={shownId === e.id}
+          open={!session || shownId === e.id}
           done={session?.done[e.id] ?? []}
           last={last.get(e.name.trim()) ?? null}
           active={!!session && !finish}
@@ -465,7 +482,7 @@ function ExerciseCard({
                     </span>
                   )}
                 </li>
-              ) : i === done.length ? (
+              ) : i === done.length && active ? (
                 <NextSet
                   key={`${i}-${last ? 'h' : ''}`}
                   number={i + 1}

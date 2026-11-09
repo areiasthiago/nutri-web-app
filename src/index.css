@@ -1527,7 +1527,7 @@ body.with-bottom-nav .editor-actions {
   bottom: 0;
   z-index: 15;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   height: var(--bottom-nav-h);
   padding-bottom: env(safe-area-inset-bottom);
   background: var(--bg);
@@ -3109,6 +3109,12 @@ body.with-bottom-nav .editor-actions {
 
 .workout-routine-head h2 {
   margin: 0;
+}
+
+.workout-routine-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .activity-start {

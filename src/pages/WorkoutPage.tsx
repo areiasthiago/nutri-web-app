@@ -4,7 +4,7 @@ import { readWorkoutWithAi } from '../lib/ai'
 import { extractPdfPages } from '../lib/pdfText'
 import { fetchAiAccess } from '../lib/ai'
 import { canUseAi } from '../lib/shoppingData'
-import { loadSession } from '../lib/workoutSession'
+import { loadSession, START_STATE } from '../lib/workoutSession'
 import { AiTeaser } from '../components/AiTeaser'
 import {
   draftFromWorkout,
@@ -135,9 +135,20 @@ export function WorkoutPage() {
             <section key={r.id} className="info-card workout-routine">
               <div className="workout-routine-head">
                 <h2>{r.name}</h2>
-                <Link to={`/treino/fazer/${r.id}`} className="btn btn-primary btn-small btn-link-as-button">
-                  {session?.routineId === r.id ? 'Continuar' : 'Começar'}
-                </Link>
+                <div className="workout-routine-actions">
+                  {session?.routineId !== r.id && (
+                    <Link to={`/treino/fazer/${r.id}`} className="btn btn-outline-neutral btn-small btn-link-as-button">
+                      Ver
+                    </Link>
+                  )}
+                  <Link
+                    to={`/treino/fazer/${r.id}`}
+                    state={session ? undefined : START_STATE}
+                    className="btn btn-primary btn-small btn-link-as-button"
+                  >
+                    {session?.routineId === r.id ? 'Continuar' : 'Começar'}
+                  </Link>
+                </div>
               </div>
               <ul>
                 {r.workout_exercises.map((e) => (

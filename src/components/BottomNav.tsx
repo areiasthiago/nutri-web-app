@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 // Navegação rápida das telas logadas, fixa embaixo: Refeições, Água e Resumo
-// são seções da tela Hoje (rola até elas); Estatísticas é uma tela própria.
+// são seções da tela Hoje (rola até elas); Treino e Estatísticas são telas próprias.
 
 export type TodaySection = 'refeicoes' | 'agua' | 'peso' | 'resumo'
 
@@ -18,7 +18,9 @@ const icon = (path: ReactNode) => (
   </svg>
 )
 
-const ITEMS: { key: TodaySection | 'estatisticas'; label: string; icon: ReactNode }[] = [
+type Screen = 'treino' | 'estatisticas'
+
+const ITEMS: { key: TodaySection | Screen; label: string; icon: ReactNode }[] = [
   {
     key: 'refeicoes',
     label: 'Refeições',
@@ -37,6 +39,15 @@ const ITEMS: { key: TodaySection | 'estatisticas'; label: string; icon: ReactNod
       <>
         <rect x="4" y="4" width="16" height="16" rx="3" />
         <path d="M8 9h8M8 13h8M8 17h5" />
+      </>,
+    ),
+  },
+  {
+    key: 'treino',
+    label: 'Treino',
+    icon: icon(
+      <>
+        <path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11" />
       </>,
     ),
   },
@@ -88,11 +99,12 @@ export function BottomNav() {
     return () => document.body.classList.remove('with-bottom-nav')
   }, [])
 
-  const active = location.pathname.startsWith('/estatisticas') ? 'estatisticas' : onToday ? visible : null
+  const screen = (['treino', 'estatisticas'] as const).find((k) => location.pathname.startsWith(`/${k}`))
+  const active = screen ?? (onToday ? visible : null)
 
-  function go(key: TodaySection | 'estatisticas') {
-    if (key === 'estatisticas') {
-      navigate('/estatisticas')
+  function go(key: TodaySection | Screen) {
+    if (key === 'treino' || key === 'estatisticas') {
+      navigate(`/${key}`)
       return
     }
     if (onToday) scrollToSection(key)

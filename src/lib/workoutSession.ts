@@ -103,6 +103,9 @@ export type Session = {
 
 const SESSION_KEY = 'nutrie.treino-em-andamento'
 
+/** State da navegação que leva à rotina já começando o treino (sem passar pela prévia). */
+export const START_STATE = { start: true }
+
 export function loadSession(): Session | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY)
