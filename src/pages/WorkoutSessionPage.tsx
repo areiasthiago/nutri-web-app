@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { fetchAiAccess } from '../lib/ai'
-import { exerciseImages, findExercise } from '../lib/exerciseCatalog'
+import { exerciseImage, findExercise } from '../lib/exerciseCatalog'
 import { formatNumber, localDateIn } from '../lib/plan'
 import { useProfile } from '../lib/profile'
 import { alarm, keepScreenOn, notifyIfHidden, unlockAudio } from '../lib/workoutAlarm'
@@ -446,7 +446,7 @@ function ExerciseCard({
 }) {
   const plan: SetsPlan = parseSets(exercise.sets_text)
   const entry = findExercise(exercise.name)
-  const images = entry ? exerciseImages(entry) : null
+  const image = entry ? exerciseImage(entry) : null
   const complete = done.length >= plan.sets
   const meta = [exercise.sets_text, exercise.load_text, exercise.rest_text && `descanso ${exercise.rest_text}`].filter(Boolean).join(' · ')
 
@@ -462,7 +462,7 @@ function ExerciseCard({
 
       {open && (
         <>
-          {images && <ExerciseImage images={images} name={exercise.name} />}
+          {image && <ExerciseImage src={image} name={exercise.name} />}
           {entry && <p className="exercise-tip">{entry.tip}</p>}
           {last && last.length > 0 && <p className="exercise-last">Da última vez: {lastTimeText(last)}</p>}
 
@@ -590,19 +590,12 @@ function NextSet({
 }
 
 /** As duas fotos (início e fim do movimento) alternando, como um GIF. */
-function ExerciseImage({ images, name }: { images: [string, string]; name: string }) {
-  const [frame, setFrame] = useState(0)
+function ExerciseImage({ src, name }: { src: string; name: string }) {
   const [failed, setFailed] = useState(false)
-  useEffect(() => {
-    const t = setInterval(() => setFrame((f) => 1 - f), 900)
-    return () => clearInterval(t)
-  }, [])
   if (failed) return null
   return (
-    <div className="exercise-image" role="img" aria-label={`Execução: ${name}`}>
-      {images.map((src, i) => (
-        <img key={src} src={src} alt="" className={frame === i ? 'is-visible' : ''} onError={() => setFailed(true)} loading="lazy" />
-      ))}
+    <div className="exercise-image">
+      <img src={src} alt={`Execução: ${name}`} onError={() => setFailed(true)} loading="lazy" />
     </div>
   )
 }

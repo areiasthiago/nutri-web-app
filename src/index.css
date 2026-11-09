@@ -2852,31 +2852,20 @@ body.with-bottom-nav .editor-actions {
 }
 
 .exercise-image {
-  position: relative;
-  aspect-ratio: 3 / 2;
+  display: flex;
+  justify-content: center;
   overflow: hidden;
   border-radius: 10px;
-  background: var(--bg);
+  /* As ilustrações têm fundo branco: o quadro fica branco também no tema escuro. */
+  background: #fff;
 }
 
 .exercise-image img {
-  position: absolute;
-  inset: 0;
+  display: block;
   width: 100%;
-  height: 100%;
+  max-width: 300px;
+  aspect-ratio: 1;
   object-fit: contain;
-  opacity: 0;
-  transition: opacity 0.25s;
-}
-
-.exercise-image img.is-visible {
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .exercise-image img {
-    transition: none;
-  }
 }
 
 .info-card p.exercise-tip {
