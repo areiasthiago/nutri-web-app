@@ -65,6 +65,7 @@ begin
   insert into public.activity_logs (log_date, routine_id, name, duration_min, kcal, kcal_source)
     values (current_date, routine_a, 'Treino A', 50, 300, 'table');
   insert into public.weight_logs (log_date, weight_kg) values (current_date, 82.5);
+  insert into public.workout_set_logs (log_date, exercise_name, set_number, reps, load_kg) values (current_date, 'Agachamento', 1, 15, 10);
   select count(*) into n from public.plans; report := report || 'A vê planos: ' || n || '; ';
   select count(*) into n from public.ai_plan_extractions; report := report || 'A vê a própria leitura PDF: ' || n || '; ';
   update public.profiles set display_name = 'A' where id = a;
@@ -157,6 +158,14 @@ begin
     report := report || 'B registra atividade com rotina de A: PERMITIU; ';
   exception when others then
     report := report || 'B registra atividade com rotina de A: bloqueado (' || sqlstate || '); ';
+  end;
+  select count(*) into n from public.workout_set_logs; report := report || 'B vê séries de A: ' || n || '; ';
+  update public.workout_set_logs set reps = 0; get diagnostics n = row_count; report := report || 'B altera série de A: ' || n || '; ';
+  begin
+    insert into public.workout_set_logs (owner_id, log_date, exercise_name, set_number) values (a, current_date, 'x', 1);
+    report := report || 'B registra série em nome de A: PERMITIU; ';
+  exception when others then
+    report := report || 'B registra série em nome de A: bloqueado (' || sqlstate || '); ';
   end;
   select count(*) into n from public.weight_logs; report := report || 'B vê peso de A: ' || n || '; ';
   update public.weight_logs set weight_kg = 50; get diagnostics n = row_count; report := report || 'B altera peso de A: ' || n || '; ';

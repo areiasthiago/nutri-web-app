@@ -21,17 +21,19 @@ import { ShoppingPage } from './pages/ShoppingPage'
 import { StatsPage } from './pages/StatsPage'
 import { TodayPage } from './pages/TodayPage'
 import { WorkoutPage } from './pages/WorkoutPage'
+import { WorkoutSessionPage } from './pages/WorkoutSessionPage'
 
 /** Telas logadas: cabeçalho com marca, tema e menu da conta. */
 function SignedInLayout() {
-  // Nos primeiros passos, sem a barra de baixo (foco na apresentação).
-  const onboarding = useLocation().pathname === '/comecar'
+  // Nos primeiros passos e no modo treino, sem a barra de baixo (foco na tela).
+  const path = useLocation().pathname
+  const focused = path === '/comecar' || path.startsWith('/treino/fazer/')
   return (
     <ProtectedRoute>
       <ProfileProvider>
         <AppHeader />
         <Outlet />
-        {!onboarding && <BottomNav />}
+        {!focused && <BottomNav />}
       </ProfileProvider>
     </ProtectedRoute>
   )
@@ -93,6 +95,7 @@ function App() {
                 <Route path="/comecar" element={<OnboardingPage />} />
                 <Route path="/compras" element={<ShoppingPage />} />
                 <Route path="/treino" element={<WorkoutPage />} />
+                <Route path="/treino/fazer/:routineId" element={<WorkoutSessionPage />} />
               </Route>
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

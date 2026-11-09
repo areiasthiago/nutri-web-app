@@ -5,7 +5,8 @@ import type { AiAccess } from '../lib/ai'
 import { formatNumber } from '../lib/plan'
 import { useProfile } from '../lib/profile'
 import { AiTeaser } from './AiTeaser'
-import { ACTIVITIES, STRENGTH_MET, fetchActiveWorkout, metKcal } from '../lib/workouts'
+import { loadSession, routineActivity } from '../lib/workoutSession'
+import { ACTIVITIES, fetchActiveWorkout, metKcal } from '../lib/workouts'
 import type { ActivityLog, WorkoutPlan } from '../lib/workouts'
 
 type NewActivity = Omit<ActivityLog, 'id' | 'logged_at' | 'log_date'>
@@ -46,6 +47,7 @@ export function ActivityCard({ activities, access, onAdd, onRemove }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState<string | null>(null)
+  const [session] = useState(loadSession)
 
   const useAi = !!access && access.vip && access.consented && access.monthSpentUsd < access.monthLimitUsd
   const weight = profile.weight_kg
@@ -78,53 +80,29 @@ export function ActivityCard({ activities, access, onAdd, onRemove }: Props) {
     if (kind === 'treino' && !routine) return setError('Escolha a rotina do treino.')
 
     setBusy(true)
-    let entry: NewActivity | null = null
-    if (useAi) {
-      const r = await estimateActivityWithAi(
-        kind === 'treino'
-          ? {
-              weight_kg: weight,
-              duration_min: min!,
-              routine: {
-                name: routine!.name,
-                exercises: routine!.workout_exercises.map(({ name, sets_text, load_text }) => ({ name, sets_text, load_text })),
-              },
-            }
-          : { weight_kg: weight, description: description.trim() },
-      )
-      if (r.ok && r.data.kcal > 0) {
-        const duration = kind === 'treino' ? min! : Math.min(600, Math.max(1, Math.round(r.data.duration_min)))
-        entry = {
-          routine_id: kind === 'treino' ? routine!.id : null,
-          name: (kind === 'treino' ? routine!.name : r.data.name || description.trim()).slice(0, 100),
-          duration_min: duration,
-          kcal: Math.min(5000, Math.round(r.data.kcal)),
-          kcal_source: 'ai',
-          note: r.data.notes.join(' ').slice(0, 500) || null,
-        }
-      } else if (r.ok) {
+    let entry: NewActivity
+    if (kind === 'treino') {
+      // Mesmo cálculo do modo treino: IA (VIP) ou tabela, com o MET da rotina.
+      const r = await routineActivity(routine!, min!, weight, useAi)
+      entry = r.entry
+      if (r.note) setNote(r.note)
+    } else if (useAi) {
+      const r = await estimateActivityWithAi({ weight_kg: weight, description: description.trim() })
+      if (!r.ok || r.data.kcal <= 0) {
         setBusy(false)
-        return setError(r.data.notes.join(' ') || 'A IA não reconheceu uma atividade física no texto.')
-      } else if (kind === 'outra') {
-        setBusy(false)
-        return setError(r.error)
-      } else {
-        setNote(`${r.error} Usei a tabela de gasto.`)
+        return setError(r.ok ? r.data.notes.join(' ') || 'A IA não reconheceu uma atividade física no texto.' : r.error)
       }
-    }
-    if (!entry) {
+      entry = {
+        routine_id: null,
+        name: (r.data.name || description.trim()).slice(0, 100),
+        duration_min: Math.min(600, Math.max(1, Math.round(r.data.duration_min))),
+        kcal: Math.min(5000, Math.round(r.data.kcal)),
+        kcal_source: 'ai',
+        note: r.data.notes.join(' ').slice(0, 500) || null,
+      }
+    } else {
       const act = ACTIVITIES.find((a) => a.key === activityKey)!
-      entry =
-        kind === 'treino'
-          ? {
-              routine_id: routine!.id,
-              name: routine!.name,
-              duration_min: min!,
-              kcal: metKcal(STRENGTH_MET, min!, weight),
-              kcal_source: 'table',
-              note: null,
-            }
-          : { routine_id: null, name: act.label, duration_min: min!, kcal: metKcal(act.met, min!, weight), kcal_source: 'table', note: null }
+      entry = { routine_id: null, name: act.label, duration_min: min!, kcal: metKcal(act.met, min!, weight), kcal_source: 'table', note: null }
     }
     const ok = await onAdd(entry)
     setBusy(false)
@@ -189,6 +167,12 @@ export function ActivityCard({ activities, access, onAdd, onRemove }: Props) {
             </p>
           )}
 
+          {kind === 'treino' && workout && session && (
+            <Link to={`/treino/fazer/${session.routineId}`} className="btn btn-primary btn-link-as-button activity-start">
+              Continuar o treino em andamento
+            </Link>
+          )}
+
           {kind === 'treino' && workout && (
             <label className="field">
               <span>Qual treino?</span>
@@ -200,6 +184,12 @@ export function ActivityCard({ activities, access, onAdd, onRemove }: Props) {
                 ))}
               </select>
             </label>
+          )}
+
+          {kind === 'treino' && routine && !session && (
+            <Link to={`/treino/fazer/${routine.id}`} className="btn btn-primary btn-link-as-button activity-start">
+              Começar o treino agora
+            </Link>
           )}
 
           {kind === 'outra' && !useAi && (
@@ -230,7 +220,7 @@ export function ActivityCard({ activities, access, onAdd, onRemove }: Props) {
 
           {!freeText && (kind === 'outra' || workout) && (
             <label className="field">
-              <span>Duração (minutos)</span>
+              <span>{kind === 'treino' ? 'Já treinou? Duração (minutos)' : 'Duração (minutos)'}</span>
               <input type="text" inputMode="numeric" value={minutes} onChange={(e) => setMinutes(e.target.value)} placeholder="Ex.: 50" />
             </label>
           )}
@@ -239,8 +229,8 @@ export function ActivityCard({ activities, access, onAdd, onRemove }: Props) {
           {note && <p className="banner banner-info">{note}</p>}
 
           {(kind === 'outra' || workout) && (
-            <button type="button" className="btn btn-primary" onClick={register} disabled={busy}>
-              {busy ? (useAi ? 'Calculando com a IA…' : 'Registrando…') : 'Registrar atividade'}
+            <button type="button" className={`btn ${kind === 'treino' ? 'btn-outline-neutral' : 'btn-primary'}`} onClick={register} disabled={busy}>
+              {busy ? (useAi ? 'Calculando com a IA…' : 'Registrando…') : kind === 'treino' ? 'Já treinei: registrar' : 'Registrar atividade'}
             </button>
           )}
 

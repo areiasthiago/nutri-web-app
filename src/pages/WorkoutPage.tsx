@@ -4,6 +4,7 @@ import { readWorkoutWithAi } from '../lib/ai'
 import { extractPdfPages } from '../lib/pdfText'
 import { fetchAiAccess } from '../lib/ai'
 import { canUseAi } from '../lib/shoppingData'
+import { loadSession } from '../lib/workoutSession'
 import { AiTeaser } from '../components/AiTeaser'
 import {
   draftFromWorkout,
@@ -17,7 +18,7 @@ import type { WorkoutDraft, WorkoutPlan } from '../lib/workouts'
 
 // Meu treino: a rotina do personal. PDF lido pela IA (só VIP, qualquer
 // formato) ou pelo leitor no próprio celular (sem IA); sempre revisado antes
-// de salvar. Também dá para montar à mão.
+// de salvar. Também dá para montar à mão. "Começar" abre o modo treino.
 
 type Step = { kind: 'view' } | { kind: 'reading' } | { kind: 'review'; draft: WorkoutDraft; note: string | null }
 
@@ -29,6 +30,7 @@ export function WorkoutPage() {
   const [error, setError] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const [vip, setVip] = useState<boolean | null>(null)
+  const [session] = useState(loadSession)
 
   useEffect(() => {
     let active = true
@@ -131,7 +133,12 @@ export function WorkoutPage() {
         <>
           {plan.workout_routines.map((r) => (
             <section key={r.id} className="info-card workout-routine">
-              <h2>{r.name}</h2>
+              <div className="workout-routine-head">
+                <h2>{r.name}</h2>
+                <Link to={`/treino/fazer/${r.id}`} className="btn btn-primary btn-small btn-link-as-button">
+                  {session?.routineId === r.id ? 'Continuar' : 'Começar'}
+                </Link>
+              </div>
               <ul>
                 {r.workout_exercises.map((e) => (
                   <li key={e.id}>
@@ -153,7 +160,8 @@ export function WorkoutPage() {
           <h2>{plan ? 'Trocar de treino' : 'Cadastrar o treino'}</h2>
           <p className="muted">
             Envie o PDF do personal: o app lê, você confere e só então salva. Ou monte à mão. Com o treino cadastrado,
-            dá para registrar na tela Hoje "Fiz o treino A" com a duração, e o gasto estimado entra no balanço do dia.
+            o modo treino mostra cada série, conta o descanso e avisa com um bipe; no fim, o gasto estimado entra no
+            balanço do dia.
           </p>
           <input
             ref={fileInput}
